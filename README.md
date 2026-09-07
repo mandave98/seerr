@@ -16,9 +16,13 @@
 > [!WARNING]
 > This is a personal fork of [seerr-team/seerr](https://github.com/seerr-team/seerr) maintained for our own deployment. It is **not supported for public use**: use it at your own risk, expect it to break, and do not report problems with this fork to the Seerr maintainers or in Seerr's Discord or issue tracker.
 
-The only change on top of upstream is **Plex sign-in for additional Plex servers**. Under **Settings → Users**, the **Additional Plex Servers** field takes a comma-separated list of Plex machine identifiers. Plex accounts with access to any of those servers can sign in, and the existing **Enable Plex Sign-In** and **Enable New Plex Sign-In** settings apply to them exactly as they do for the primary server. A server's machine identifier is shown by opening `http://<server-address>:32400/identity` in a browser.
+There are two changes on top of upstream.
+
+**Plex sign-in for additional Plex servers.** Under **Settings → Users**, the **Additional Plex Servers** field takes a comma-separated list of Plex machine identifiers. Plex accounts with access to any of those servers can sign in, and the existing **Enable Plex Sign-In** and **Enable New Plex Sign-In** settings apply to them exactly as they do for the primary server. A server's machine identifier is shown by opening `http://<server-address>:32400/identity` in a browser.
 
 Nothing else is multi-server. Library scanning, availability, watchlists, and user import still use the single configured Plex server.
+
+**Bulk edit only writes the permissions you change.** Under **Users → Bulk Edit**, permissions that every selected user has start checked, permissions that only some of them have show a dash, and anything you leave alone keeps each user's current value when you save. Clicking a dashed permission grants it to everyone; clicking it again revokes it from everyone. The owner and admins are never bulk edited, so their rows cannot be selected. `PUT /api/v1/user` accepts an optional `preservePermissions` bitmask for this; without it the endpoint overwrites all permissions, as upstream does.
 
 - **Docker image:** `ghcr.io/mandave98/seerr` (`latest` and `sha-*` tags), built automatically from the `fork` branch by the [Fork Docker Image](.github/workflows/fork-docker.yml) workflow.
 - **Branches:** `fork` is upstream `develop` plus our commits and is what we ship. `develop` is left as a pristine copy of upstream. To pick up upstream changes, rebase `fork` onto `upstream/develop` and force-push.
