@@ -11,6 +11,20 @@
 <a href="https://translate.seerr.dev/engage/seerr/"><img src="https://translate.seerr.dev/widget/seerr/svg-badge.svg" alt="Translation status" /></a>
 <a href="https://github.com/seerr-team/seerr/blob/develop/LICENSE"><img alt="GitHub" src="https://img.shields.io/github/license/seerr-team/seerr"></a>
 
+## About This Fork
+
+> [!WARNING]
+> This is a personal fork of [seerr-team/seerr](https://github.com/seerr-team/seerr) maintained for our own deployment. It is **not supported for public use**: use it at your own risk, expect it to break, and do not report problems with this fork to the Seerr maintainers or in Seerr's Discord or issue tracker.
+
+The only change on top of upstream is **Plex sign-in for additional Plex servers**. Under **Settings → Users**, the **Additional Plex Servers** field takes a comma-separated list of Plex machine identifiers. Plex accounts with access to any of those servers can sign in, and the existing **Enable Plex Sign-In** and **Enable New Plex Sign-In** settings apply to them exactly as they do for the primary server. A server's machine identifier is shown by opening `http://<server-address>:32400/identity` in a browser.
+
+Nothing else is multi-server. Library scanning, availability, watchlists, and user import still use the single configured Plex server.
+
+- **Docker image:** `ghcr.io/mandave98/seerr` (`latest` and `sha-*` tags), built automatically from the `fork` branch by the [Fork Docker Image](.github/workflows/fork-docker.yml) workflow.
+- **Branches:** `fork` is upstream `develop` plus our commits and is what we ship. `develop` is left as a pristine copy of upstream. To pick up upstream changes, rebase `fork` onto `upstream/develop` and force-push.
+
+---
+
 **Seerr** is a free and open source software application for managing requests for your media library. It integrates with the media server of your choice: [Jellyfin](https://jellyfin.org), [Plex](https://plex.tv), and [Emby](https://emby.media/). In addition, it integrates with your existing services, such as **[Sonarr](https://sonarr.tv/)**, **[Radarr](https://radarr.video/)**.
 
 ## Current Features
