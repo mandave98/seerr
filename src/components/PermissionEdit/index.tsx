@@ -91,6 +91,7 @@ interface PermissionEditProps {
   actingUser?: User;
   currentUser?: User;
   currentPermission: number;
+  mixedPermissions?: number;
   onUpdate: (newPermissions: number) => void;
 }
 
@@ -98,6 +99,7 @@ export const PermissionEdit = ({
   actingUser,
   currentUser,
   currentPermission,
+  mixedPermissions,
   onUpdate,
 }: PermissionEditProps) => {
   const intl = useIntl();
@@ -366,6 +368,7 @@ export const PermissionEdit = ({
           actingUser={actingUser}
           currentUser={currentUser}
           currentPermission={currentPermission}
+          mixedPermissions={mixedPermissions}
           onUpdate={(newPermission) => onUpdate(newPermission)}
         />
       ))}

@@ -4365,7 +4365,7 @@ paths:
     put:
       summary: Update batch of users
       description: |
-        Update users with given IDs with provided values in request `body.settings`. You cannot update users' Plex tokens through this request.
+        Update users with given IDs with provided values in request `body.settings`. You cannot update users' Plex tokens through this request. The owner and users with the `ADMIN` permission are never modified.
 
         Requires the `MANAGE_USERS` permission.
       tags:
@@ -4383,6 +4383,9 @@ paths:
                     type: integer
                 permissions:
                   type: integer
+                preservePermissions:
+                  type: integer
+                  description: Bitmask of permissions to leave unchanged for each user. Omit to overwrite all permissions.
       responses:
         '200':
           description: Successfully updated user details

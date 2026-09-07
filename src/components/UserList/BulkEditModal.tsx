@@ -2,10 +2,9 @@ import Modal from '@app/components/Common/Modal';
 import PermissionEdit from '@app/components/PermissionEdit';
 import useToasts from '@app/hooks/useToasts';
 import type { User } from '@app/hooks/useUser';
-import { Permission, useUser } from '@app/hooks/useUser';
+import { useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
-import { hasPermission } from '@server/lib/permissions';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
@@ -35,6 +34,8 @@ const BulkEditModal = ({
   const intl = useIntl();
   const { addToast } = useToasts();
   const [currentPermission, setCurrentPermission] = useState(0);
+  // Permissions only some selected users have; left untouched on save unless toggled
+  const [mixedPermissions, setMixedPermissions] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -49,6 +50,7 @@ const BulkEditModal = ({
       const { data: updated } = await axios.put<User[]>(`/api/v1/user`, {
         ids: selectedUserIds,
         permissions: currentPermission,
+        preservePermissions: mixedPermissions,
       });
       if (onComplete) {
         onComplete(updated);
@@ -70,20 +72,14 @@ const BulkEditModal = ({
   useEffect(() => {
     if (users) {
       const selectedUsers = users.filter((u) => selectedUserIds.includes(u.id));
-      const { permissions: allPermissionsEqual } = selectedUsers.reduce(
-        ({ permissions: aPerms }, { permissions: bPerms }) => {
-          return {
-            permissions:
-              aPerms === bPerms || hasPermission(Permission.ADMIN, aPerms)
-                ? aPerms
-                : NaN,
-          };
-        },
-        { permissions: selectedUsers[0].permissions }
+      // Start from the permissions every selected user has; the rest are shown as mixed
+      const everyone = selectedUsers.reduce(
+        (acc, u) => acc & u.permissions,
+        ~0
       );
-      if (allPermissionsEqual) {
-        setCurrentPermission(allPermissionsEqual);
-      }
+      const anyone = selectedUsers.reduce((acc, u) => acc | u.permissions, 0);
+      setCurrentPermission(everyone & anyone);
+      setMixedPermissions(anyone & ~everyone);
     }
   }, [users, selectedUserIds]);
 
@@ -101,7 +97,14 @@ const BulkEditModal = ({
         <PermissionEdit
           actingUser={currentUser}
           currentPermission={currentPermission}
-          onUpdate={(newPermission) => setCurrentPermission(newPermission)}
+          mixedPermissions={mixedPermissions}
+          onUpdate={(newPermission) => {
+            // A toggled permission is no longer mixed and is written for every user
+            setMixedPermissions(
+              mixedPermissions & ~(newPermission ^ currentPermission)
+            );
+            setCurrentPermission(newPermission);
+          }}
         />
       </div>
     </Modal>

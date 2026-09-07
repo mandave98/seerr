@@ -513,11 +513,9 @@ export const canMakePermissionsChange = (
 router.put<
   Record<string, never>,
   Partial<User>[],
-  { ids: string[]; permissions: number }
+  { ids: string[]; permissions: number; preservePermissions?: number }
 >('/', isAuthenticated(Permission.MANAGE_USERS), async (req, res, next) => {
   try {
-    const isOwner = req.user?.id === 1;
-
     if (!canMakePermissionsChange(req.body.permissions, req.user)) {
       return next({
         status: 403,
@@ -527,19 +525,26 @@ router.put<
 
     const userRepository = getRepository(User);
 
-    const users: User[] = await userRepository.find({
-      where: {
-        id: In(
-          isOwner ? req.body.ids : req.body.ids.filter((id) => Number(id) !== 1)
-        ),
-      },
-    });
+    // The owner and admins are never bulk edited; edit them individually instead
+    const users = (
+      await userRepository.find({ where: { id: In(req.body.ids) } })
+    ).filter(
+      (user) =>
+        user.id !== 1 && !hasPermission(Permission.ADMIN, user.permissions)
+    );
+
+    // Bits set in preservePermissions keep each user's current value
+    const preserve = req.body.preservePermissions ?? 0;
 
     const updatedUsers = await Promise.all(
       users.map(async (user) => {
         return userRepository.save(<User>{
           ...user,
-          ...{ permissions: req.body.permissions },
+          ...{
+            permissions:
+              (user.permissions & preserve) |
+              (req.body.permissions & ~preserve),
+          },
         });
       })
     );

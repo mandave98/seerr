@@ -279,26 +279,18 @@ const UserList = () => {
     }
   }, [data]);
 
-  const isUserPermsEditable = (userId: number) =>
-    userId !== 1 && userId !== currentUser?.id;
-  const isAllUsersSelected = () => {
-    return (
-      selectedUsers.length ===
-      data?.results.filter((user) => user.id !== currentUser?.id).length
-    );
-  };
+  // The owner, admins and the current user are never bulk edited
+  const isUserPermsEditable = (user: User) =>
+    user.id !== 1 &&
+    user.id !== currentUser?.id &&
+    !hasPermission(Permission.ADMIN, user.permissions);
+  const editableUsers = data?.results.filter(isUserPermsEditable) ?? [];
+  const isAllUsersSelected = () =>
+    editableUsers.length > 0 && selectedUsers.length === editableUsers.length;
   const isUserSelected = (userId: number) => selectedUsers.includes(userId);
   const toggleAllUsers = () => {
-    if (
-      data &&
-      selectedUsers.length >= 0 &&
-      selectedUsers.length < data?.results.length - 1
-    ) {
-      setSelectedUsers(
-        data.results
-          .filter((user) => isUserPermsEditable(user.id))
-          .map((u) => u.id)
-      );
+    if (selectedUsers.length < editableUsers.length) {
+      setSelectedUsers(editableUsers.map((u) => u.id));
     } else {
       setSelectedUsers([]);
     }
@@ -826,7 +818,7 @@ const UserList = () => {
           {data?.results.map((user) => (
             <tr key={`user-list-${user.id}`} data-testid="user-list-row">
               <Table.TD>
-                {isUserPermsEditable(user.id) && (
+                {isUserPermsEditable(user) && (
                   <input
                     type="checkbox"
                     id={`user-list-select-${user.id}`}

@@ -22,6 +22,8 @@ interface PermissionOptionProps {
   actingUser?: User;
   currentUser?: User;
   currentPermission: number;
+  /** Permissions that only some of the users being edited have */
+  mixedPermissions?: number;
   parent?: PermissionItem;
   onUpdate: (newPermissions: number) => void;
 }
@@ -31,6 +33,7 @@ const PermissionOption = ({
   actingUser,
   currentUser,
   currentPermission,
+  mixedPermissions = 0,
   onUpdate,
   parent,
 }: PermissionOptionProps) => {
@@ -99,6 +102,9 @@ const PermissionOption = ({
     checked = false;
   }
 
+  // Show a dash when only some users have this permission and it can still be changed here
+  const showMixed = !disabled && !!(mixedPermissions & option.permission);
+
   return (
     <>
       <div
@@ -112,6 +118,12 @@ const PermissionOption = ({
             name="permissions"
             type="checkbox"
             disabled={disabled}
+            ref={(el) => {
+              // indeterminate is a DOM property only; it cannot be set as a JSX attribute
+              if (el) {
+                el.indeterminate = showMixed;
+              }
+            }}
             onChange={() => {
               onUpdate(
                 hasPermission(option.permission, currentPermission)
@@ -138,6 +150,7 @@ const PermissionOption = ({
           <PermissionOption
             option={child}
             currentPermission={currentPermission}
+            mixedPermissions={mixedPermissions}
             onUpdate={(newPermission) => onUpdate(newPermission)}
             parent={option}
           />
