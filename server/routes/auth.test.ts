@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { before, beforeEach, describe, it, mock } from 'node:test';
 
 import JellyfinAPI from '@server/api/jellyfin';
+import PlexTvAPI from '@server/api/plextv';
 import { ApiErrorCode } from '@server/constants/error';
 import { MediaServerType } from '@server/constants/server';
 import { UserType } from '@server/constants/user';
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
+import type { PlexDevice } from '@server/interfaces/api/plexInterfaces';
 import PreparedEmail from '@server/lib/email';
 import { getSettings } from '@server/lib/settings';
 import { checkUser } from '@server/middleware/auth';
@@ -66,6 +68,57 @@ const authenticateQCMock = mock.method(
   JellyfinAPI.prototype,
   'authenticateQuickConnect',
   async () => ({ ...defaultAuthenticateResponse })
+);
+
+// Plex sign-in mocks
+const defaultPlexAccount = {
+  id: 2001,
+  uuid: 'plex-uuid-2001',
+  email: 'plexfriend@seerr.dev',
+  joined_at: '2020-01-01T00:00:00Z',
+  username: 'plexfriend',
+  title: 'plexfriend',
+  thumb: 'https://plex.tv/users/2001/avatar',
+  hasPassword: true,
+  authToken: 'plex-user-token',
+  subscription: { active: false, status: 'Inactive', plan: '', features: [] },
+  roles: { roles: [] },
+  entitlements: [],
+};
+
+const plexServerDevice = (clientIdentifier: string): PlexDevice => ({
+  name: `Server ${clientIdentifier}`,
+  product: 'Plex Media Server',
+  productVersion: '1.41.0',
+  platform: 'Linux',
+  platformVersion: '',
+  device: '',
+  clientIdentifier,
+  createdAt: new Date(),
+  lastSeenAt: new Date(),
+  provides: ['server'],
+  owned: false,
+  connection: [],
+});
+
+const getPlexUserMock = mock.method(
+  PlexTvAPI.prototype,
+  'getUser',
+  async () => ({
+    ...defaultPlexAccount,
+  })
+);
+
+const checkUserAccessMock = mock.method(
+  PlexTvAPI.prototype,
+  'checkUserAccess',
+  async () => false
+);
+
+const getDevicesMock = mock.method(
+  PlexTvAPI.prototype,
+  'getDevices',
+  async (): Promise<PlexDevice[]> => []
 );
 
 let app: Express;
@@ -829,5 +882,109 @@ describe('POST /auth/reset-password/:guid', () => {
       .post(`/auth/reset-password/${guid}`)
       .send({ password: 'anotherpassword' });
     assert.strictEqual(second.status, 500);
+  });
+});
+
+describe('POST /auth/plex', () => {
+  beforeEach(() => {
+    const settings = getSettings();
+    settings.main.mediaServerType = MediaServerType.PLEX;
+    settings.main.mediaServerLogin = true;
+    settings.main.newPlexLogin = true;
+    settings.main.additionalPlexMachineIds = '';
+
+    getPlexUserMock.mock.resetCalls();
+    getPlexUserMock.mock.mockImplementation(async () => ({
+      ...defaultPlexAccount,
+    }));
+    checkUserAccessMock.mock.resetCalls();
+    checkUserAccessMock.mock.mockImplementation(async () => false);
+    getDevicesMock.mock.resetCalls();
+    getDevicesMock.mock.mockImplementation(async () => []);
+  });
+
+  it('returns 403 for a Plex user without access to the media server', async () => {
+    const res = await request(app)
+      .post('/auth/plex')
+      .send({ authToken: 'plex-user-token' });
+
+    assert.strictEqual(res.status, 403);
+    assert.strictEqual(res.body.message, 'Access denied.');
+    // No additional servers are configured, so plex.tv devices are never queried
+    assert.strictEqual(getDevicesMock.mock.callCount(), 0);
+  });
+
+  it('signs in a Plex user with access to an additional Plex server', async () => {
+    getSettings().main.additionalPlexMachineIds =
+      'second-server-id, third-server-id';
+    getDevicesMock.mock.mockImplementation(async () => [
+      plexServerDevice('third-server-id'),
+    ]);
+
+    const agent = request.agent(app);
+    const res = await agent
+      .post('/auth/plex')
+      .send({ authToken: 'plex-user-token' });
+
+    assert.strictEqual(res.status, 200);
+    assert.ok('id' in res.body);
+
+    const newUser = await getRepository(User).findOne({
+      where: { plexId: 2001 },
+    });
+    assert.ok(newUser);
+    assert.strictEqual(newUser.plexUsername, 'plexfriend');
+    assert.strictEqual(newUser.userType, UserType.PLEX);
+
+    const meRes = await agent.get('/auth/me');
+    assert.strictEqual(meRes.status, 200);
+  });
+
+  it('returns 403 when the Plex user only has access to unlisted servers', async () => {
+    getSettings().main.additionalPlexMachineIds = 'second-server-id';
+    getDevicesMock.mock.mockImplementation(async () => [
+      plexServerDevice('unlisted-server-id'),
+    ]);
+
+    const res = await request(app)
+      .post('/auth/plex')
+      .send({ authToken: 'plex-user-token' });
+
+    assert.strictEqual(res.status, 403);
+    assert.strictEqual(res.body.message, 'Access denied.');
+    assert.strictEqual(getDevicesMock.mock.callCount(), 1);
+  });
+
+  it('returns 403 for an unimported additional-server user when newPlexLogin is disabled', async () => {
+    const settings = getSettings();
+    settings.main.newPlexLogin = false;
+    settings.main.additionalPlexMachineIds = 'second-server-id';
+    getDevicesMock.mock.mockImplementation(async () => [
+      plexServerDevice('second-server-id'),
+    ]);
+
+    const res = await request(app)
+      .post('/auth/plex')
+      .send({ authToken: 'plex-user-token' });
+
+    assert.strictEqual(res.status, 403);
+    assert.strictEqual(res.body.message, 'Access denied.');
+
+    const user = await getRepository(User).findOne({
+      where: { plexId: 2001 },
+    });
+    assert.strictEqual(user, null);
+  });
+
+  it('does not query additional servers when the user has access to the media server', async () => {
+    getSettings().main.additionalPlexMachineIds = 'second-server-id';
+    checkUserAccessMock.mock.mockImplementation(async () => true);
+
+    const res = await request(app)
+      .post('/auth/plex')
+      .send({ authToken: 'plex-user-token' });
+
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(getDevicesMock.mock.callCount(), 0);
   });
 });

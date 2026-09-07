@@ -36,6 +36,9 @@ const messages = defineMessages('components.Settings.SettingsUsers', {
   newPlexLogin: 'Enable New {mediaServerName} Sign-In',
   newPlexLoginTip:
     'Allow {mediaServerName} users to sign in without first being imported',
+  additionalPlexMachineIds: 'Additional Plex Servers',
+  additionalPlexMachineIdsTip:
+    'Comma-separated machine identifiers of other Plex servers whose users may sign in',
   movieRequestLimitLabel: 'Global Movie Request Limit',
   tvRequestLimitLabel: 'Global Series Request Limit',
   defaultPermissions: 'Default Permissions',
@@ -110,6 +113,7 @@ const SettingsUsers = () => {
             localLogin: data?.localLogin,
             mediaServerLogin: data?.mediaServerLogin,
             newPlexLogin: data?.newPlexLogin,
+            additionalPlexMachineIds: data?.additionalPlexMachineIds ?? '',
             movieQuotaLimit: data?.defaultQuotas.movie.quotaLimit ?? 0,
             movieQuotaDays: data?.defaultQuotas.movie.quotaDays ?? 7,
             tvQuotaLimit: data?.defaultQuotas.tv.quotaLimit ?? 0,
@@ -124,6 +128,7 @@ const SettingsUsers = () => {
                 localLogin: values.localLogin,
                 mediaServerLogin: values.mediaServerLogin,
                 newPlexLogin: values.newPlexLogin,
+                additionalPlexMachineIds: values.additionalPlexMachineIds,
                 defaultQuotas: {
                   movie: {
                     quotaLimit: values.movieQuotaLimit,
@@ -246,6 +251,31 @@ const SettingsUsers = () => {
                     />
                   </div>
                 </div>
+                {settings.currentSettings.mediaServerType ===
+                  MediaServerType.PLEX && (
+                  <div className="form-row">
+                    <label
+                      htmlFor="additionalPlexMachineIds"
+                      className="text-label"
+                    >
+                      {intl.formatMessage(messages.additionalPlexMachineIds)}
+                      <span className="label-tip">
+                        {intl.formatMessage(
+                          messages.additionalPlexMachineIdsTip
+                        )}
+                      </span>
+                    </label>
+                    <div className="form-input-area">
+                      <div className="form-input-field">
+                        <Field
+                          id="additionalPlexMachineIds"
+                          name="additionalPlexMachineIds"
+                          type="text"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="form-row">
                   <label htmlFor="applicationTitle" className="text-label">
                     {intl.formatMessage(messages.movieRequestLimitLabel)}

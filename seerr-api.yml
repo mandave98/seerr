@@ -244,6 +244,10 @@ components:
         newPlexLogin:
           type: boolean
           example: true
+        additionalPlexMachineIds:
+          type: string
+          description: Comma-separated machine identifiers of additional Plex servers whose users may sign in
+          example: ''
         defaultPermissions:
           type: number
           example: 32

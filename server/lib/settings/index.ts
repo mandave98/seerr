@@ -144,6 +144,7 @@ export interface MainSettings {
   localLogin: boolean;
   mediaServerLogin: boolean;
   newPlexLogin: boolean;
+  additionalPlexMachineIds: string;
   discoverRegion: string;
   streamingRegion: string;
   originalLanguage: string;
@@ -420,6 +421,7 @@ class Settings {
         localLogin: true,
         mediaServerLogin: true,
         newPlexLogin: true,
+        additionalPlexMachineIds: '',
         discoverRegion: '',
         streamingRegion: '',
         originalLanguage: '',

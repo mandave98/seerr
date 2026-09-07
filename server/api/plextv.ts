@@ -409,6 +409,37 @@ class PlexTvAPI extends ExternalAPI {
       });
     }
   }
+
+  /**
+   * Checks whether this token's account has access to any of the additional
+   * Plex servers configured for sign-in. Unlike checkUserAccess(), this is
+   * based on the signing-in user's own plex.tv resources, so the servers do
+   * not have to be owned by the main Seerr user.
+   */
+  public async checkAdditionalServerAccess(): Promise<boolean> {
+    const settings = getSettings();
+    const machineIds = settings.main.additionalPlexMachineIds
+      .split(',')
+      .map((machineId) => machineId.trim())
+      .filter(Boolean);
+
+    if (!machineIds.length) {
+      return false;
+    }
+
+    try {
+      const devices = (await this.getDevices()) ?? [];
+
+      return devices.some(
+        (device) =>
+          device.provides.includes('server') &&
+          machineIds.includes(device.clientIdentifier)
+      );
+    } catch (e) {
+      logger.error(`Error checking additional server access: ${e.message}`);
+      return false;
+    }
+  }
 }
 
 export default PlexTvAPI;
