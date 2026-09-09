@@ -120,6 +120,9 @@ const TvRequestModal = ({
           languageProfileId: requestOverrides?.language,
           userId: requestOverrides?.user?.id,
           tags: requestOverrides?.tags,
+          searchForMissingEpisodes: requestOverrides?.searchForMissingEpisodes,
+          searchForCutoffUnmetEpisodes:
+            requestOverrides?.searchForCutoffUnmetEpisodes,
           seasons: selectedSeasons.sort((a, b) => a - b),
         });
 
@@ -192,6 +195,9 @@ const TvRequestModal = ({
           languageProfileId: requestOverrides.language,
           userId: requestOverrides?.user?.id,
           tags: requestOverrides.tags,
+          searchForMissingEpisodes: requestOverrides.searchForMissingEpisodes,
+          searchForCutoffUnmetEpisodes:
+            requestOverrides.searchForCutoffUnmetEpisodes,
         };
       }
       const response = await axios.post<MediaRequest>('/api/v1/request', {
@@ -733,6 +739,10 @@ const TvRequestModal = ({
                   server: editRequest.serverId,
                   language: editRequest.languageProfileId,
                   tags: editRequest.tags,
+                  searchForMissingEpisodes:
+                    editRequest.searchForMissingEpisodes,
+                  searchForCutoffUnmetEpisodes:
+                    editRequest.searchForCutoffUnmetEpisodes,
                 }
               : undefined
           }

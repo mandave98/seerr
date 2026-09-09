@@ -494,6 +494,9 @@ export class MediaRequest {
 
       await mediaRepository.save(media);
 
+      // Only request managers can stop Sonarr from searching once the series is added
+      const canManageRequests = user.hasPermission(Permission.MANAGE_REQUESTS);
+
       const request = new MediaRequest({
         type: MediaType.TV,
         media,
@@ -555,6 +558,12 @@ export class MediaRequest {
         ),
         isAutoRequest: options.isAutoRequest ?? false,
         ignoreQuota,
+        searchForMissingEpisodes: canManageRequests
+          ? (requestBody.searchForMissingEpisodes ?? true)
+          : true,
+        searchForCutoffUnmetEpisodes: canManageRequests
+          ? (requestBody.searchForCutoffUnmetEpisodes ?? true)
+          : true,
       });
 
       await requestRepository.save(request);
@@ -663,6 +672,12 @@ export class MediaRequest {
 
   @Column({ default: false })
   public ignoreQuota: boolean;
+
+  @Column({ default: true })
+  public searchForMissingEpisodes: boolean;
+
+  @Column({ default: true })
+  public searchForCutoffUnmetEpisodes: boolean;
 
   constructor(init?: Partial<MediaRequest>) {
     Object.assign(this, init);

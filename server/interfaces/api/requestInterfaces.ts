@@ -27,4 +27,6 @@ export type MediaRequestBody = {
   userId?: number;
   tags?: number[];
   ignoreQuota?: boolean;
+  searchForMissingEpisodes?: boolean;
+  searchForCutoffUnmetEpisodes?: boolean;
 };

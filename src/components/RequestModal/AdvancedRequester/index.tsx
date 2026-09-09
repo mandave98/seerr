@@ -49,6 +49,12 @@ const messages = defineMessages('components.RequestModal.AdvancedRequester', {
   ignoreQuotaTitle: 'Bypass User Quota',
   ignoreQuotaDescription:
     "This request will not count against the user's quota limits. Use with caution.",
+  searchForMissingEpisodesTitle: 'Start Search for Missing Episodes',
+  searchForMissingEpisodesDescription:
+    'Sonarr will search for missing episodes as soon as the series is added.',
+  searchForCutoffUnmetEpisodesTitle: 'Start Search for Cutoff Unmet Episodes',
+  searchForCutoffUnmetEpisodesDescription:
+    'Sonarr will search for episodes below the quality profile cutoff as soon as the series is added.',
 });
 
 export type RequestOverrides = {
@@ -59,6 +65,8 @@ export type RequestOverrides = {
   language?: number;
   user?: User;
   ignoreQuota?: boolean;
+  searchForMissingEpisodes?: boolean;
+  searchForCutoffUnmetEpisodes?: boolean;
 };
 
 interface AdvancedRequesterProps {
@@ -117,6 +125,13 @@ const AdvancedRequester = ({
   const isIgnoreQuotaVisible =
     currentHasPermission([Permission.MANAGE_REQUESTS]) &&
     ((type === 'movie' ? quota?.movie.limit : quota?.tv.limit) ?? 0) > 0;
+
+  const [searchForMissingEpisodes, setSearchForMissingEpisodes] =
+    useState<boolean>(defaultOverrides?.searchForMissingEpisodes ?? true);
+  const [searchForCutoffUnmetEpisodes, setSearchForCutoffUnmetEpisodes] =
+    useState<boolean>(defaultOverrides?.searchForCutoffUnmetEpisodes ?? true);
+  const isSearchOptionsVisible =
+    type === 'tv' && currentHasPermission([Permission.MANAGE_REQUESTS]);
 
   const { data: serverData, isValidating } =
     useSWR<ServiceCommonServerWithDetails>(
@@ -288,6 +303,19 @@ const AdvancedRequester = ({
     if (defaultOverrides && defaultOverrides.ignoreQuota != null) {
       setIgnoreQuota(defaultOverrides.ignoreQuota);
     }
+
+    if (defaultOverrides && defaultOverrides.searchForMissingEpisodes != null) {
+      setSearchForMissingEpisodes(defaultOverrides.searchForMissingEpisodes);
+    }
+
+    if (
+      defaultOverrides &&
+      defaultOverrides.searchForCutoffUnmetEpisodes != null
+    ) {
+      setSearchForCutoffUnmetEpisodes(
+        defaultOverrides.searchForCutoffUnmetEpisodes
+      );
+    }
   }, [
     defaultOverrides?.server,
     defaultOverrides?.folder,
@@ -295,6 +323,8 @@ const AdvancedRequester = ({
     defaultOverrides?.language,
     defaultOverrides?.tags,
     defaultOverrides?.ignoreQuota,
+    defaultOverrides?.searchForMissingEpisodes,
+    defaultOverrides?.searchForCutoffUnmetEpisodes,
   ]);
 
   useEffect(() => {
@@ -317,6 +347,12 @@ const AdvancedRequester = ({
         language: selectedLanguage !== -1 ? selectedLanguage : undefined,
         tags: selectedTags,
         ignoreQuota: isIgnoreQuotaVisible && ignoreQuota ? true : undefined,
+        searchForMissingEpisodes: isSearchOptionsVisible
+          ? searchForMissingEpisodes
+          : undefined,
+        searchForCutoffUnmetEpisodes: isSearchOptionsVisible
+          ? searchForCutoffUnmetEpisodes
+          : undefined,
       });
     }
   }, [
@@ -328,6 +364,9 @@ const AdvancedRequester = ({
     selectedTags,
     ignoreQuota,
     isIgnoreQuotaVisible,
+    searchForMissingEpisodes,
+    searchForCutoffUnmetEpisodes,
+    isSearchOptionsVisible,
   ]);
 
   if (!data && !error) {
@@ -608,6 +647,48 @@ const AdvancedRequester = ({
               />
             </div>
           </div>
+        )}
+        {isSearchOptionsVisible && (
+          <>
+            <div className="mb-2">
+              <label htmlFor="searchForMissingEpisodes">
+                {intl.formatMessage(messages.searchForMissingEpisodesTitle)}
+              </label>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-400">
+                  {intl.formatMessage(
+                    messages.searchForMissingEpisodesDescription
+                  )}
+                </p>
+                <SlideCheckbox
+                  checked={searchForMissingEpisodes}
+                  onClick={() =>
+                    setSearchForMissingEpisodes(!searchForMissingEpisodes)
+                  }
+                />
+              </div>
+            </div>
+            <div className="mb-2">
+              <label htmlFor="searchForCutoffUnmetEpisodes">
+                {intl.formatMessage(messages.searchForCutoffUnmetEpisodesTitle)}
+              </label>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-400">
+                  {intl.formatMessage(
+                    messages.searchForCutoffUnmetEpisodesDescription
+                  )}
+                </p>
+                <SlideCheckbox
+                  checked={searchForCutoffUnmetEpisodes}
+                  onClick={() =>
+                    setSearchForCutoffUnmetEpisodes(
+                      !searchForCutoffUnmetEpisodes
+                    )
+                  }
+                />
+              </div>
+            </div>
+          </>
         )}
         {currentHasPermission([
           Permission.MANAGE_REQUESTS,

@@ -408,6 +408,103 @@ describe('PUT /request/:requestId (tv)', () => {
   });
 });
 
+describe('PUT /request/:requestId (tv), Sonarr search options', () => {
+  async function seedTvRequest() {
+    const userRepo = getRepository(User);
+    const mediaRepo = getRepository(Media);
+    const requestRepo = getRepository(MediaRequest);
+
+    const requestedBy = await userRepo.findOneOrFail({
+      where: { email: 'friend@seerr.dev' },
+    });
+
+    const media = await mediaRepo.save(
+      new Media({
+        mediaType: MediaType.TV,
+        tmdbId: 67890,
+        status: MediaStatus.PENDING,
+        status4k: MediaStatus.UNKNOWN,
+      })
+    );
+
+    const created = await requestRepo.save(
+      new MediaRequest({
+        type: MediaType.TV,
+        status: MediaRequestStatus.PENDING,
+        media,
+        requestedBy,
+        is4k: false,
+        seasons: [
+          new SeasonRequest({
+            seasonNumber: 1,
+            status: MediaRequestStatus.PENDING,
+          }),
+        ],
+      })
+    );
+
+    return requestRepo.findOneOrFail({ where: { id: created.id } });
+  }
+
+  it('lets request managers turn the searches off and keeps them off when omitted', async () => {
+    const requestRepo = getRepository(MediaRequest);
+    const mediaRequest = await seedTvRequest();
+
+    assert.strictEqual(mediaRequest.searchForMissingEpisodes, true);
+    assert.strictEqual(mediaRequest.searchForCutoffUnmetEpisodes, true);
+
+    const agent = await loginAs('admin@seerr.dev', 'test1234');
+    let res = await agent.put(`/request/${mediaRequest.id}`).send({
+      mediaType: MediaType.TV,
+      seasons: [1],
+      searchForMissingEpisodes: false,
+      searchForCutoffUnmetEpisodes: false,
+    });
+
+    assert.strictEqual(res.status, 200);
+
+    let saved = await requestRepo.findOneOrFail({
+      where: { id: mediaRequest.id },
+    });
+    assert.strictEqual(saved.searchForMissingEpisodes, false);
+    assert.strictEqual(saved.searchForCutoffUnmetEpisodes, false);
+
+    res = await agent.put(`/request/${mediaRequest.id}`).send({
+      mediaType: MediaType.TV,
+      seasons: [1],
+    });
+
+    assert.strictEqual(res.status, 200);
+
+    saved = await requestRepo.findOneOrFail({
+      where: { id: mediaRequest.id },
+    });
+    assert.strictEqual(saved.searchForMissingEpisodes, false);
+    assert.strictEqual(saved.searchForCutoffUnmetEpisodes, false);
+  });
+
+  it('ignores the search options from a user who cannot manage requests', async () => {
+    const requestRepo = getRepository(MediaRequest);
+    const mediaRequest = await seedTvRequest();
+
+    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const res = await agent.put(`/request/${mediaRequest.id}`).send({
+      mediaType: MediaType.TV,
+      seasons: [1],
+      searchForMissingEpisodes: false,
+      searchForCutoffUnmetEpisodes: false,
+    });
+
+    assert.strictEqual(res.status, 200);
+
+    const saved = await requestRepo.findOneOrFail({
+      where: { id: mediaRequest.id },
+    });
+    assert.strictEqual(saved.searchForMissingEpisodes, true);
+    assert.strictEqual(saved.searchForCutoffUnmetEpisodes, true);
+  });
+});
+
 describe('POST /request/:requestId/:status', () => {
   const cases = [
     { action: 'approve', expected: MediaRequestStatus.APPROVED },

@@ -529,6 +529,15 @@ requestRoutes.put<{ requestId: string }>(
         request.tags = req.body.tags;
         request.requestedBy = requestUser as User;
 
+        if (req.user?.hasPermission(Permission.MANAGE_REQUESTS)) {
+          request.searchForMissingEpisodes =
+            req.body.searchForMissingEpisodes ??
+            request.searchForMissingEpisodes;
+          request.searchForCutoffUnmetEpisodes =
+            req.body.searchForCutoffUnmetEpisodes ??
+            request.searchForCutoffUnmetEpisodes;
+        }
+
         const requestedSeasons = req.body.seasons as number[] | undefined;
 
         if (!requestedSeasons || requestedSeasons.length === 0) {

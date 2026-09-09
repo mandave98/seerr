@@ -1278,6 +1278,14 @@ components:
           type: boolean
           example: false
           description: If true, this request will not count against the user's quota. Requires MANAGE_REQUESTS permission.
+        searchForMissingEpisodes:
+          type: boolean
+          example: true
+          description: Whether Sonarr should search for missing episodes when the series is added. Requires MANAGE_REQUESTS permission to change.
+        searchForCutoffUnmetEpisodes:
+          type: boolean
+          example: true
+          description: Whether Sonarr should search for cutoff unmet episodes when the series is added. Requires MANAGE_REQUESTS permission to change.
       required:
         - id
         - status
@@ -6619,6 +6627,14 @@ paths:
                   type: boolean
                   example: false
                   description: If true, this request will not count against the user's quota. Requires MANAGE_REQUESTS permission.
+                searchForMissingEpisodes:
+                  type: boolean
+                  example: true
+                  description: Whether Sonarr should search for missing episodes when the series is added. Requires MANAGE_REQUESTS permission to change.
+                searchForCutoffUnmetEpisodes:
+                  type: boolean
+                  example: true
+                  description: Whether Sonarr should search for cutoff unmet episodes when the series is added. Requires MANAGE_REQUESTS permission to change.
               required:
                 - mediaType
                 - mediaId
@@ -6725,6 +6741,14 @@ paths:
                 userId:
                   type: number
                   nullable: true
+                searchForMissingEpisodes:
+                  type: boolean
+                  example: true
+                  description: Whether Sonarr should search for missing episodes when the series is added. Requires MANAGE_REQUESTS permission to change.
+                searchForCutoffUnmetEpisodes:
+                  type: boolean
+                  example: true
+                  description: Whether Sonarr should search for cutoff unmet episodes when the series is added. Requires MANAGE_REQUESTS permission to change.
               required:
                 - mediaType
       responses:

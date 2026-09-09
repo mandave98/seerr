@@ -77,6 +77,7 @@ export interface SonarrSeries {
     ignoreEpisodesWithFiles?: boolean;
     ignoreEpisodesWithoutFiles?: boolean;
     searchForMissingEpisodes?: boolean;
+    searchForCutoffUnmetEpisodes?: boolean;
   };
   statistics: {
     seasonCount: number;
@@ -102,6 +103,7 @@ export interface AddSeriesOptions {
   monitored?: boolean;
   monitorNewItems?: SonarrSeries['monitorNewItems'];
   searchNow?: boolean;
+  searchForCutoffUnmetEpisodes?: boolean;
 }
 
 export interface LanguageProfile {
@@ -284,6 +286,7 @@ class SonarrAPI extends ServarrBase<{
           addOptions: {
             ignoreEpisodesWithFiles: true,
             searchForMissingEpisodes: options.searchNow,
+            searchForCutoffUnmetEpisodes: options.searchForCutoffUnmetEpisodes,
           },
         } as Partial<SonarrSeries>
       );
