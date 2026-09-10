@@ -1636,7 +1636,7 @@
   "components.UserProfile.recentlywatched": "Recently Watched",
   "components.UserProfile.recentrequests": "Recent Requests",
   "components.UserProfile.requestsperdays": "{limit} remaining",
-  "components.UserProfile.seriesrequest": "Series Requests",
+  "components.UserProfile.seriesrequest": "Season Requests",
   "components.UserProfile.totalrequests": "Total Requests",
   "components.UserProfile.unlimited": "Unlimited",
   "hooks.useQuickConnect.errorMessage": "Failed to initiate Quick Connect. Please try again.",

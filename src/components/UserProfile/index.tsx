@@ -32,7 +32,7 @@ const messages = defineMessages('components.UserProfile', {
   totalrequests: 'Total Requests',
   pastdays: '{type} (past {days} days)',
   movierequests: 'Movie Requests',
-  seriesrequest: 'Series Requests',
+  seriesrequest: 'Season Requests',
   recentlywatched: 'Recently Watched',
   plexwatchlist: 'Plex Watchlist',
   localWatchlist: "{username}'s Watchlist",

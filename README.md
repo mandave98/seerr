@@ -16,7 +16,7 @@
 > [!WARNING]
 > This is a personal fork of [seerr-team/seerr](https://github.com/seerr-team/seerr) maintained for our own deployment. It is **not supported for public use**: use it at your own risk, expect it to break, and do not report problems with this fork to the Seerr maintainers or in Seerr's Discord or issue tracker.
 
-There are three changes on top of upstream.
+There are four changes on top of upstream.
 
 **Plex sign-in for additional Plex servers.** Under **Settings → Users**, the **Additional Plex Servers** field takes a comma-separated list of Plex machine identifiers. Plex accounts with access to any of those servers can sign in, and the existing **Enable Plex Sign-In** and **Enable New Plex Sign-In** settings apply to them exactly as they do for the primary server. A server's machine identifier is shown by opening `http://<server-address>:32400/identity` in a browser.
 
@@ -25,6 +25,8 @@ Nothing else is multi-server. Library scanning, availability, watchlists, and us
 **Bulk edit only writes the permissions you change.** Under **Users → Bulk Edit**, permissions that every selected user has start checked, permissions that only some of them have show a dash, and anything you leave alone keeps each user's current value when you save. Clicking a dashed permission grants it to everyone; clicking it again revokes it from everyone. The owner and admins are never bulk edited, so their rows cannot be selected. `PUT /api/v1/user` accepts an optional `preservePermissions` bitmask for this; without it the endpoint overwrites all permissions, as upstream does.
 
 **Per-request Sonarr search options.** Users with the **Manage Requests** permission get two toggles in the **Advanced** section of the series request modal: **Start Search for Missing Episodes** and **Start Search for Cutoff Unmet Episodes**. Both default to on. Turn them off before clicking **Approve Request** on a pending request, or when requesting as a manager, and Sonarr will add and monitor the series without searching, so a large series can be grabbed by hand. A Sonarr server's **Prevent Search** setting still disables searching regardless of the toggles, and the one-click approve buttons keep the defaults. `POST` and `PUT /api/v1/request` accept `searchForMissingEpisodes` and `searchForCutoffUnmetEpisodes` for this.
+
+**The profile card says Season Requests.** The series request limit counts seasons, not series, as the **Series Request Limit** selector in user settings already says. The user profile card was labelled **Series Requests**, which made a user with a handful of multi-season requests look like they had hit the limit early, so it now reads **Season Requests**. The limit itself is unchanged.
 
 - **Docker image:** `ghcr.io/mandave98/seerr` (`latest` and `sha-*` tags), built automatically from the `fork` branch by the [Fork Docker Image](.github/workflows/fork-docker.yml) workflow.
 - **Branches:** `fork` is upstream `develop` plus our commits and is what we ship. `develop` is left as a pristine copy of upstream. To pick up upstream changes, rebase `fork` onto `upstream/develop` and force-push.
