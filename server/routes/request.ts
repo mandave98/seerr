@@ -15,6 +15,7 @@ import {
   QuotaRestrictedError,
   RequestPermissionError,
 } from '@server/entity/MediaRequest';
+import RequestComment from '@server/entity/RequestComment';
 import SeasonRequest from '@server/entity/SeasonRequest';
 import { User } from '@server/entity/User';
 import type {
@@ -431,7 +432,11 @@ requestRoutes.get('/:requestId', async (req, res, next) => {
   try {
     const request = await requestRepository.findOneOrFail({
       where: { id: Number(req.params.requestId) },
-      relations: { requestedBy: true, modifiedBy: true },
+      relations: {
+        requestedBy: true,
+        modifiedBy: true,
+        comments: { user: true },
+      },
     });
 
     if (
@@ -645,6 +650,65 @@ requestRoutes.delete('/:requestId', async (req, res, next) => {
     next({ status: 404, message: 'Request not found.' });
   }
 });
+
+requestRoutes.post<{ requestId: string }, MediaRequest, { message: string }>(
+  '/:requestId/comment',
+  isAuthenticated([Permission.MANAGE_REQUESTS, Permission.REQUEST], {
+    type: 'or',
+  }),
+  async (req, res, next) => {
+    const requestRepository = getRepository(MediaRequest);
+    const requestCommentRepository = getRepository(RequestComment);
+    // Satisfy typescript here. User is set, we assure you!
+    if (!req.user) {
+      return next({ status: 500, message: 'User missing from request.' });
+    }
+
+    try {
+      const request = await requestRepository.findOneOrFail({
+        where: { id: Number(req.params.requestId) },
+        relations: { requestedBy: true },
+      });
+
+      if (
+        request.requestedBy.id !== req.user.id &&
+        !req.user.hasPermission(Permission.MANAGE_REQUESTS)
+      ) {
+        return next({
+          status: 403,
+          message: 'You do not have permission to comment on this request.',
+        });
+      }
+
+      // Saved through its own repository so the request itself is untouched
+      // and its subscriber does not re-send anything to Radarr or Sonarr.
+      await requestCommentRepository.save(
+        new RequestComment({
+          message: req.body.message,
+          user: req.user,
+          request,
+        })
+      );
+
+      const updated = await requestRepository.findOneOrFail({
+        where: { id: request.id },
+        relations: {
+          requestedBy: true,
+          modifiedBy: true,
+          comments: { user: true },
+        },
+      });
+
+      return res.status(200).json(updated);
+    } catch (e) {
+      logger.debug('Something went wrong creating a request comment.', {
+        label: 'API',
+        errorMessage: e.message,
+      });
+      next({ status: 404, message: 'Request not found.' });
+    }
+  }
+);
 
 requestRoutes.post<{
   requestId: string;

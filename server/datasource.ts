@@ -5,6 +5,7 @@ import IssueComment from '@server/entity/IssueComment';
 import Media from '@server/entity/Media';
 import { MediaRequest } from '@server/entity/MediaRequest';
 import OverrideRule from '@server/entity/OverrideRule';
+import RequestComment from '@server/entity/RequestComment';
 import Season from '@server/entity/Season';
 import SeasonRequest from '@server/entity/SeasonRequest';
 import { Session } from '@server/entity/Session';
@@ -32,6 +33,7 @@ const entities = [
   Media,
   MediaRequest,
   OverrideRule,
+  RequestComment,
   Season,
   SeasonRequest,
   Session,

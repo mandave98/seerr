@@ -3,6 +3,7 @@ import Badge from '@app/components/Common/Badge';
 import Button from '@app/components/Common/Button';
 import CachedImage from '@app/components/Common/CachedImage';
 import ConfirmButton from '@app/components/Common/ConfirmButton';
+import RequestCommentsModal from '@app/components/RequestComments';
 import RequestModal from '@app/components/RequestModal';
 import StatusBadge from '@app/components/StatusBadge';
 import useDeepLinks from '@app/hooks/useDeepLinks';
@@ -16,6 +17,7 @@ import {
 } from '@app/utils/refreshIntervalHelper';
 import {
   ArrowPathIcon,
+  ChatBubbleOvalLeftEllipsisIcon,
   CheckIcon,
   PencilIcon,
   TrashIcon,
@@ -52,6 +54,8 @@ const messages = defineMessages('components.RequestList.RequestItem', {
   removearr: 'Remove from {arr}',
   removemediaerror: 'Something went wrong while removing the media.',
   profileName: 'Profile',
+  comments: 'Comments',
+  commentcount: 'Comments ({count})',
 });
 
 const isMovie = (movie: MovieDetails | TvDetails): movie is MovieDetails => {
@@ -304,6 +308,7 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
   const intl = useIntl();
   const { user, hasPermission } = useUser();
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
   const url =
     request.type === 'movie'
       ? `/api/v1/movie/${request.media.tmdbId}`
@@ -433,6 +438,14 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
         onComplete={() => {
           revalidateList();
           setShowEditModal(false);
+        }}
+      />
+      <RequestCommentsModal
+        show={showCommentsModal}
+        requestId={request.id}
+        onCancel={() => {
+          setShowCommentsModal(false);
+          revalidate();
         }}
       />
       <div className="relative flex w-full flex-col justify-between overflow-hidden rounded-xl bg-gray-800 py-2 text-gray-400 shadow-md ring-1 ring-gray-700 xl:h-28 xl:flex-row">
@@ -783,6 +796,22 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
                 <span>{intl.formatMessage(messages.cancelRequest)}</span>
               </ConfirmButton>
             )}
+          <span className="w-full">
+            <Button
+              className="w-full"
+              buttonType="default"
+              onClick={() => setShowCommentsModal(true)}
+            >
+              <ChatBubbleOvalLeftEllipsisIcon />
+              <span>
+                {requestData.commentCount
+                  ? intl.formatMessage(messages.commentcount, {
+                      count: requestData.commentCount,
+                    })
+                  : intl.formatMessage(messages.comments)}
+              </span>
+            </Button>
+          </span>
         </div>
       </div>
     </>

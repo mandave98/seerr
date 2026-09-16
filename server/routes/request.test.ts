@@ -15,6 +15,7 @@ import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
 import { MediaRequest } from '@server/entity/MediaRequest';
 import OverrideRule from '@server/entity/OverrideRule';
+import RequestComment from '@server/entity/RequestComment';
 import Season from '@server/entity/Season';
 import SeasonRequest from '@server/entity/SeasonRequest';
 import { User } from '@server/entity/User';
@@ -28,6 +29,7 @@ import session from 'express-session';
 import request from 'supertest';
 import authRoutes from './auth';
 import requestRoutes from './request';
+import requestCommentRoutes from './requestComment';
 
 const sendNotificationMock = mock.method(
   MediaRequest,
@@ -146,6 +148,7 @@ function createApp() {
   app.use(checkUser);
   app.use('/auth', authRoutes);
   app.use('/request', requestRoutes);
+  app.use('/requestComment', requestCommentRoutes);
   app.use(
     (
       err: { status?: number; message?: string },
@@ -1188,5 +1191,193 @@ describe('DELETE /request/:requestId, orphaned season status reset', () => {
     const updated = await mediaRepo.findOneOrFail({ where: { id: media.id } });
     assert.strictEqual(updated.seasons[0].status, MediaStatus.UNKNOWN);
     assert.strictEqual(updated.seasons[0].status4k, MediaStatus.PROCESSING);
+  });
+});
+
+async function seedRequestOwnedBy(email: string, tmdbId: number) {
+  const userRepo = getRepository(User);
+  const mediaRepo = getRepository(Media);
+  const requestRepo = getRepository(MediaRequest);
+
+  const requestedBy = await userRepo.findOneOrFail({ where: { email } });
+  const media = await mediaRepo.save(
+    new Media({
+      mediaType: MediaType.MOVIE,
+      tmdbId,
+      status: MediaStatus.UNKNOWN,
+      status4k: MediaStatus.UNKNOWN,
+    })
+  );
+
+  return requestRepo.save(
+    new MediaRequest({
+      type: MediaType.MOVIE,
+      status: MediaRequestStatus.APPROVED,
+      media,
+      requestedBy,
+      is4k: false,
+    })
+  );
+}
+
+async function seedComment(
+  mediaRequest: MediaRequest,
+  email: string,
+  message: string
+) {
+  const userRepo = getRepository(User);
+  const commentRepo = getRepository(RequestComment);
+  const user = await userRepo.findOneOrFail({ where: { email } });
+
+  return commentRepo.save(
+    new RequestComment({ message, user, request: mediaRequest })
+  );
+}
+
+describe('POST /request/:requestId/comment', () => {
+  it('lets the owner comment on their own approved request', async () => {
+    const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
+
+    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const res = await agent
+      .post(`/request/${mediaRequest.id}/comment`)
+      .send({ message: 'Grabbing this one by hand' });
+
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.comments.length, 1);
+    assert.strictEqual(
+      res.body.comments[0].message,
+      'Grabbing this one by hand'
+    );
+    assert.strictEqual(res.body.comments[0].user.email, 'friend@seerr.dev');
+  });
+
+  it("lets a request manager comment on another user's request and counts it", async () => {
+    const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
+
+    const agent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await agent
+      .post(`/request/${mediaRequest.id}/comment`)
+      .send({ message: 'Searching later' });
+    assert.strictEqual(res.status, 200);
+
+    const fetched = await agent.get(`/request/${mediaRequest.id}`);
+    assert.strictEqual(fetched.status, 200);
+    assert.strictEqual(fetched.body.commentCount, 1);
+    assert.strictEqual(fetched.body.comments[0].message, 'Searching later');
+
+    // The list is built with a query builder, so make sure the count survives there too.
+    const list = await agent.get('/request?take=50&filter=all');
+    assert.strictEqual(list.status, 200);
+    const listed = list.body.results.find(
+      (r: { id: number }) => r.id === mediaRequest.id
+    );
+    assert.strictEqual(listed?.commentCount, 1);
+    assert.strictEqual(listed?.comments, undefined);
+  });
+
+  it('does not touch the request row itself', async () => {
+    const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
+
+    const agent = await loginAs('admin@seerr.dev', 'test1234');
+    const before = await agent.get(`/request/${mediaRequest.id}`);
+    await agent
+      .post(`/request/${mediaRequest.id}/comment`)
+      .send({ message: 'note' });
+    const after = await agent.get(`/request/${mediaRequest.id}`);
+
+    assert.strictEqual(after.body.updatedAt, before.body.updatedAt);
+    assert.strictEqual(after.body.modifiedBy, before.body.modifiedBy);
+    assert.strictEqual(after.body.status, MediaRequestStatus.APPROVED);
+  });
+
+  it("prevents a non-owner non-manager from commenting on someone else's request", async () => {
+    const mediaRequest = await seedRequestOwnedBy('admin@seerr.dev', 77001);
+
+    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const res = await agent
+      .post(`/request/${mediaRequest.id}/comment`)
+      .send({ message: 'nope' });
+
+    assert.strictEqual(res.status, 403);
+  });
+
+  it('returns 404 for a non-existent request', async () => {
+    const agent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await agent
+      .post('/request/99999999/comment')
+      .send({ message: 'hello?' });
+
+    assert.strictEqual(res.status, 404);
+  });
+});
+
+describe('/requestComment/:commentId', () => {
+  it('lets the author edit their own comment', async () => {
+    const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
+    const comment = await seedComment(mediaRequest, 'friend@seerr.dev', 'v1');
+
+    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const res = await agent
+      .put(`/requestComment/${comment.id}`)
+      .send({ message: 'v2' });
+
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.message, 'v2');
+  });
+
+  it("prevents a request manager from editing someone else's comment", async () => {
+    const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
+    const comment = await seedComment(mediaRequest, 'friend@seerr.dev', 'v1');
+
+    const agent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await agent
+      .put(`/requestComment/${comment.id}`)
+      .send({ message: 'v2' });
+
+    assert.strictEqual(res.status, 403);
+  });
+
+  it("lets a request manager delete someone else's comment", async () => {
+    const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
+    const comment = await seedComment(mediaRequest, 'friend@seerr.dev', 'v1');
+
+    const agent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await agent.delete(`/requestComment/${comment.id}`);
+    assert.strictEqual(res.status, 204);
+
+    const fetched = await agent.get(`/request/${mediaRequest.id}`);
+    assert.strictEqual(fetched.body.comments.length, 0);
+  });
+
+  it("prevents a non-manager from deleting someone else's comment", async () => {
+    const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
+    const comment = await seedComment(mediaRequest, 'admin@seerr.dev', 'v1');
+
+    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const res = await agent.delete(`/requestComment/${comment.id}`);
+
+    assert.strictEqual(res.status, 403);
+  });
+
+  it('lets the request owner read a manager comment on their request', async () => {
+    const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
+    const comment = await seedComment(mediaRequest, 'admin@seerr.dev', 'v1');
+
+    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const res = await agent.get(`/requestComment/${comment.id}`);
+
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.message, 'v1');
+  });
+
+  it("prevents a plain user from reading a comment on someone else's request", async () => {
+    const mediaRequest = await seedRequestOwnedBy('admin@seerr.dev', 77002);
+    const comment = await seedComment(mediaRequest, 'admin@seerr.dev', 'v1');
+
+    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const res = await agent.get(`/requestComment/${comment.id}`);
+
+    assert.strictEqual(res.status, 403);
   });
 });

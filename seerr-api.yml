@@ -1286,9 +1286,37 @@ components:
           type: boolean
           example: true
           description: Whether Sonarr should search for cutoff unmet episodes when the series is added. Requires MANAGE_REQUESTS permission to change.
+        commentCount:
+          type: number
+          example: 0
+          readOnly: true
+        comments:
+          type: array
+          description: Only included when a single request is fetched.
+          items:
+            $ref: '#/components/schemas/RequestComment'
       required:
         - id
         - status
+    RequestComment:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 1
+        user:
+          $ref: '#/components/schemas/User'
+        message:
+          type: string
+          example: A comment
+        createdAt:
+          type: string
+          example: '2020-09-12T10:00:27.000Z'
+          readOnly: true
+        updatedAt:
+          type: string
+          example: '2020-09-12T10:00:27.000Z'
+          readOnly: true
     MediaInfo:
       type: object
       properties:
@@ -6776,6 +6804,107 @@ paths:
       responses:
         '204':
           description: Succesfully removed request
+  /request/{requestId}/comment:
+    post:
+      summary: Create a request comment
+      description: |
+        Creates a comment on a request, at any status, and returns the request with its comments in JSON format.
+
+        Requires the `MANAGE_REQUESTS` permission, or the request must belong to the user.
+      tags:
+        - request
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema:
+            type: number
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+              required:
+                - message
+      responses:
+        '200':
+          description: Request returned with new comment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaRequest'
+  /requestComment/{commentId}:
+    get:
+      summary: Get request comment
+      description: |
+        Returns a single request comment in JSON format.
+      tags:
+        - request
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema:
+            type: string
+            example: 1
+      responses:
+        '200':
+          description: Comment returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestComment'
+    put:
+      summary: Update request comment
+      description: |
+        Updates and returns a single request comment in JSON format. Only the user who created the comment can perform this action.
+      tags:
+        - request
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema:
+            type: string
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+      responses:
+        '200':
+          description: Comment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestComment'
+    delete:
+      summary: Delete request comment
+      description: |
+        Deletes a request comment. Only users with `MANAGE_REQUESTS` or the user who created the comment can perform this action.
+      tags:
+        - request
+      parameters:
+        - in: path
+          name: commentId
+          description: Request Comment ID
+          required: true
+          example: '1'
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Succesfully removed request comment
   /request/{requestId}/retry:
     post:
       summary: Retry failed request

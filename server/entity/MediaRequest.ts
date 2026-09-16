@@ -30,6 +30,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import Media from './Media';
+import RequestComment from './RequestComment';
 import SeasonRequest from './SeasonRequest';
 import { User } from './User';
 
@@ -679,6 +680,12 @@ export class MediaRequest {
   @Column({ default: true })
   public searchForCutoffUnmetEpisodes: boolean;
 
+  @RelationCount((request: MediaRequest) => request.comments)
+  public commentCount: number;
+
+  @OneToMany(() => RequestComment, (comment) => comment.request)
+  public comments: RequestComment[];
+
   constructor(init?: Partial<MediaRequest>) {
     Object.assign(this, init);
   }
@@ -787,6 +794,13 @@ export class MediaRequest {
   private sortSeasons() {
     if (Array.isArray(this.seasons)) {
       this.seasons.sort((a, b) => a.id - b.id);
+    }
+  }
+
+  @AfterLoad()
+  private sortComments() {
+    if (Array.isArray(this.comments)) {
+      this.comments.sort((a, b) => a.id - b.id);
     }
   }
 
