@@ -651,6 +651,53 @@ requestRoutes.delete('/:requestId', async (req, res, next) => {
   }
 });
 
+requestRoutes.put<
+  { requestId: string },
+  MediaRequest,
+  { ignoreQuota: boolean }
+>(
+  '/:requestId/quota',
+  isAuthenticated(Permission.MANAGE_REQUESTS),
+  async (req, res, next) => {
+    const requestRepository = getRepository(MediaRequest);
+
+    if (typeof req.body.ignoreQuota !== 'boolean') {
+      return next({ status: 400, message: 'ignoreQuota must be a boolean.' });
+    }
+
+    try {
+      const request = await requestRepository.findOneOrFail({
+        where: { id: Number(req.params.requestId) },
+        relations: { requestedBy: true, modifiedBy: true },
+      });
+
+      // Written with listeners off because saving the entity would make the
+      // subscriber re-send an approved request to Radarr or Sonarr. updatedAt
+      // is set to itself so the row's "Modified" date keeps meaning approval.
+      await requestRepository
+        .createQueryBuilder()
+        .update()
+        .set({
+          ignoreQuota: req.body.ignoreQuota,
+          updatedAt: () => '"updatedAt"',
+        })
+        .where('id = :id', { id: request.id })
+        .callListeners(false)
+        .execute();
+
+      request.ignoreQuota = req.body.ignoreQuota;
+
+      return res.status(200).json(request);
+    } catch (e) {
+      logger.debug('Something went wrong updating a request quota bypass.', {
+        label: 'API',
+        errorMessage: e.message,
+      });
+      next({ status: 404, message: 'Request not found.' });
+    }
+  }
+);
+
 requestRoutes.post<{ requestId: string }, MediaRequest, { message: string }>(
   '/:requestId/comment',
   isAuthenticated([Permission.MANAGE_REQUESTS, Permission.REQUEST], {

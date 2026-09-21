@@ -16,7 +16,7 @@
 > [!WARNING]
 > This is a personal fork of [seerr-team/seerr](https://github.com/seerr-team/seerr) maintained for our own deployment. It is **not supported for public use**: use it at your own risk, expect it to break, and do not report problems with this fork to the Seerr maintainers or in Seerr's Discord or issue tracker.
 
-There are five changes on top of upstream.
+There are six changes on top of upstream.
 
 **Plex sign-in for additional Plex servers.** Under **Settings → Users**, the **Additional Plex Servers** field takes a comma-separated list of Plex machine identifiers. Plex accounts with access to any of those servers can sign in, and the existing **Enable Plex Sign-In** and **Enable New Plex Sign-In** settings apply to them exactly as they do for the primary server. A server's machine identifier is shown by opening `http://<server-address>:32400/identity` in a browser.
 
@@ -27,6 +27,8 @@ Nothing else is multi-server. Library scanning, availability, watchlists, and us
 **Per-request Sonarr search options.** Users with the **Manage Requests** permission get two toggles in the **Advanced** section of the series request modal: **Start Search for Missing Episodes** and **Start Search for Cutoff Unmet Episodes**. Both default to on. Turn them off before clicking **Approve Request** on a pending request, or when requesting as a manager, and Sonarr will add and monitor the series without searching, so a large series can be grabbed by hand. A Sonarr server's **Prevent Search** setting still disables searching regardless of the toggles, and the one-click approve buttons keep the defaults. `POST` and `PUT /api/v1/request` accept `searchForMissingEpisodes` and `searchForCutoffUnmetEpisodes` for this.
 
 **Comments on requests.** Every row on the **Requests** page has a **Comments** button that opens a thread for that request, at any status, so notes can be left after a request is approved. It works like issue comments: the requester and users with the **Manage Requests** permission can comment, authors can edit their own comments, and request managers can delete anyone's. Comments never change the request itself and do not send notifications. `POST /api/v1/request/{requestId}/comment` adds one, `GET /api/v1/request/{requestId}` includes the thread, and `/api/v1/requestComment/{commentId}` reads, edits, or deletes a single comment.
+
+**Bypass the quota after the fact.** Upstream's **Bypass User Quota** toggle only exists while a request is being made. Users with the **Manage Requests** permission now also get a **Bypass Quota** button on every row of the **Requests** page, at any status except declined, which stops that request counting toward the requester's quota. The button turns into **Restore Quota** to undo it. Nothing else about the request changes and it is not re-sent to Radarr or Sonarr. `PUT /api/v1/request/{requestId}/quota` takes `ignoreQuota` for this.
 
 **The profile card says Season Requests.** The series request limit counts seasons, not series, as the **Series Request Limit** selector in user settings already says. The user profile card was labelled **Series Requests**, which made a user with a handful of multi-season requests look like they had hit the limit early, so it now reads **Season Requests**. The limit itself is unchanged.
 

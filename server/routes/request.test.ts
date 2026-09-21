@@ -22,6 +22,7 @@ import { User } from '@server/entity/User';
 import type { RadarrSettings, SonarrSettings } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
 import { checkUser } from '@server/middleware/auth';
+import { MediaRequestSubscriber } from '@server/subscriber/MediaRequestSubscriber';
 import { setupTestDb } from '@server/test/db';
 import type { Express } from 'express';
 import express from 'express';
@@ -1379,5 +1380,99 @@ describe('/requestComment/:commentId', () => {
     const res = await agent.get(`/requestComment/${comment.id}`);
 
     assert.strictEqual(res.status, 403);
+  });
+});
+
+describe('PUT /request/:requestId/quota', () => {
+  it('stops an approved request counting toward the quota, and restores it', async () => {
+    const userRepo = getRepository(User);
+    const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
+    const friend = await userRepo.findOneOrFail({
+      where: { email: 'friend@seerr.dev' },
+    });
+    friend.movieQuotaLimit = 1;
+    friend.movieQuotaDays = 7;
+    await userRepo.save(friend);
+    assert.strictEqual((await friend.getQuota()).movie.restricted, true);
+
+    const agent = await loginAs('admin@seerr.dev', 'test1234');
+    const bypassed = await agent
+      .put(`/request/${mediaRequest.id}/quota`)
+      .send({ ignoreQuota: true });
+
+    assert.strictEqual(bypassed.status, 200);
+    assert.strictEqual(bypassed.body.ignoreQuota, true);
+    const freed = await friend.getQuota();
+    assert.strictEqual(freed.movie.used, 0);
+    assert.strictEqual(freed.movie.restricted, false);
+
+    const restored = await agent
+      .put(`/request/${mediaRequest.id}/quota`)
+      .send({ ignoreQuota: false });
+
+    assert.strictEqual(restored.status, 200);
+    assert.strictEqual((await friend.getQuota()).movie.used, 1);
+  });
+
+  it('does not re-send the request or change anything else on it', async () => {
+    const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
+    const sendToRadarr = mock.method(
+      MediaRequestSubscriber.prototype,
+      'sendToRadarr',
+      async () => undefined
+    );
+
+    try {
+      const agent = await loginAs('admin@seerr.dev', 'test1234');
+      const before = await agent.get(`/request/${mediaRequest.id}`);
+      const res = await agent
+        .put(`/request/${mediaRequest.id}/quota`)
+        .send({ ignoreQuota: true });
+      const after = await agent.get(`/request/${mediaRequest.id}`);
+
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(sendToRadarr.mock.callCount(), 0);
+      assert.strictEqual(after.body.ignoreQuota, true);
+      assert.strictEqual(after.body.updatedAt, before.body.updatedAt);
+      assert.strictEqual(after.body.modifiedBy, before.body.modifiedBy);
+      assert.strictEqual(after.body.status, MediaRequestStatus.APPROVED);
+    } finally {
+      sendToRadarr.mock.restore();
+    }
+  });
+
+  it('is limited to request managers', async () => {
+    const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
+
+    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const res = await agent
+      .put(`/request/${mediaRequest.id}/quota`)
+      .send({ ignoreQuota: true });
+
+    assert.strictEqual(res.status, 403);
+    const persisted = await getRepository(MediaRequest).findOneOrFail({
+      where: { id: mediaRequest.id },
+    });
+    assert.strictEqual(persisted.ignoreQuota, false);
+  });
+
+  it('rejects a body without a boolean ignoreQuota', async () => {
+    const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
+
+    const agent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await agent
+      .put(`/request/${mediaRequest.id}/quota`)
+      .send({ ignoreQuota: 'yes' });
+
+    assert.strictEqual(res.status, 400);
+  });
+
+  it('returns 404 for a non-existent request', async () => {
+    const agent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await agent
+      .put('/request/99999999/quota')
+      .send({ ignoreQuota: true });
+
+    assert.strictEqual(res.status, 404);
   });
 });

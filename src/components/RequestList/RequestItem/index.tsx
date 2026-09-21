@@ -20,6 +20,7 @@ import {
   ChatBubbleOvalLeftEllipsisIcon,
   CheckIcon,
   PencilIcon,
+  TicketIcon,
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/solid';
@@ -56,6 +57,8 @@ const messages = defineMessages('components.RequestList.RequestItem', {
   profileName: 'Profile',
   comments: 'Comments',
   commentcount: 'Comments ({count})',
+  bypassquota: 'Bypass Quota',
+  restorequota: 'Restore Quota',
 });
 
 const isMovie = (movie: MovieDetails | TvDetails): movie is MovieDetails => {
@@ -333,6 +336,7 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
   const [updatingType, setUpdatingType] = useState<
     'approve' | 'decline' | null
   >(null);
+  const [isUpdatingQuota, setUpdatingQuota] = useState(false);
 
   const modifyRequest = async (type: 'approve' | 'decline') => {
     setUpdatingType(type);
@@ -391,6 +395,24 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
       });
     } finally {
       setRetrying(false);
+    }
+  };
+
+  const toggleIgnoreQuota = async () => {
+    setUpdatingQuota(true);
+
+    try {
+      const result = await axios.put(`/api/v1/request/${request.id}/quota`, {
+        ignoreQuota: !requestData?.ignoreQuota,
+      });
+      revalidate(result.data);
+    } catch {
+      addToast(intl.formatMessage(messages.failedmodify), {
+        autoDismiss: true,
+        appearance: 'error',
+      });
+    } finally {
+      setUpdatingQuota(false);
     }
   };
 
@@ -796,22 +818,44 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
                 <span>{intl.formatMessage(messages.cancelRequest)}</span>
               </ConfirmButton>
             )}
-          <span className="w-full">
-            <Button
-              className="w-full"
-              buttonType="default"
-              onClick={() => setShowCommentsModal(true)}
-            >
-              <ChatBubbleOvalLeftEllipsisIcon />
-              <span>
-                {requestData.commentCount
-                  ? intl.formatMessage(messages.commentcount, {
-                      count: requestData.commentCount,
-                    })
-                  : intl.formatMessage(messages.comments)}
-              </span>
-            </Button>
-          </span>
+          <div className="flex w-full flex-row space-x-2">
+            <span className="w-full">
+              <Button
+                className="w-full"
+                buttonType="default"
+                onClick={() => setShowCommentsModal(true)}
+              >
+                <ChatBubbleOvalLeftEllipsisIcon />
+                <span>
+                  {requestData.commentCount
+                    ? intl.formatMessage(messages.commentcount, {
+                        count: requestData.commentCount,
+                      })
+                    : intl.formatMessage(messages.comments)}
+                </span>
+              </Button>
+            </span>
+            {requestData.status !== MediaRequestStatus.DECLINED &&
+              hasPermission(Permission.MANAGE_REQUESTS) && (
+                <span className="w-full">
+                  <Button
+                    className="w-full"
+                    buttonType={requestData.ignoreQuota ? 'warning' : 'default'}
+                    onClick={() => toggleIgnoreQuota()}
+                    disabled={isUpdatingQuota}
+                  >
+                    <TicketIcon />
+                    <span>
+                      {intl.formatMessage(
+                        requestData.ignoreQuota
+                          ? messages.restorequota
+                          : messages.bypassquota
+                      )}
+                    </span>
+                  </Button>
+                </span>
+              )}
+          </div>
         </div>
       </div>
     </>

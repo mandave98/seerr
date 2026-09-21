@@ -6804,6 +6804,40 @@ paths:
       responses:
         '204':
           description: Succesfully removed request
+  /request/{requestId}/quota:
+    put:
+      summary: Set whether a request counts toward the quota
+      description: |
+        Sets `ignoreQuota` on an existing request, at any status, and returns the request in JSON format. Nothing else on the request changes and it is not re-sent to Radarr or Sonarr.
+
+        Requires the `MANAGE_REQUESTS` permission.
+      tags:
+        - request
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema:
+            type: number
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ignoreQuota:
+                  type: boolean
+              required:
+                - ignoreQuota
+      responses:
+        '200':
+          description: Request returned with the new ignoreQuota value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaRequest'
   /request/{requestId}/comment:
     post:
       summary: Create a request comment
