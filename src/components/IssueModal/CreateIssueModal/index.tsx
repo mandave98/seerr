@@ -21,9 +21,9 @@ import * as Yup from 'yup';
 
 const messages = defineMessages('components.IssueModal.CreateIssueModal', {
   validationMessageRequired: 'You must provide a description',
-  whatswrong: "What's wrong?",
+  whatswrong: "What's wrong, or what would you like changed?",
   providedetail:
-    'Please provide a detailed explanation of the issue you encountered.',
+    "Describe the problem or the change you'd like (e.g. add the English dub).",
   extras: 'Extras',
   season: 'Season {seasonNumber}',
   episode: 'Episode {episodeNumber}',
@@ -35,8 +35,8 @@ const messages = defineMessages('components.IssueModal.CreateIssueModal', {
     'Issue report for <strong>{title}</strong> submitted successfully!',
   toastFailedCreate: 'Something went wrong while submitting the issue.',
   toastviewissue: 'View Issue',
-  reportissue: 'Report an Issue',
-  submitissue: 'Submit Issue',
+  reportissue: 'Issue or Change Request',
+  submitissue: 'Submit',
 });
 
 const isMovie = (movie: MovieDetails | TvDetails): movie is MovieDetails => {

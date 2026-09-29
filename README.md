@@ -16,7 +16,7 @@
 > [!WARNING]
 > This is a personal fork of [seerr-team/seerr](https://github.com/seerr-team/seerr) maintained for our own deployment. It is **not supported for public use**: use it at your own risk, expect it to break, and do not report problems with this fork to the Seerr maintainers or in Seerr's Discord or issue tracker.
 
-There are six changes on top of upstream.
+There are seven changes on top of upstream.
 
 **Plex sign-in for additional Plex servers.** Under **Settings → Users**, the **Additional Plex Servers** field takes a comma-separated list of Plex machine identifiers. Plex accounts with access to any of those servers can sign in, and the existing **Enable Plex Sign-In** and **Enable New Plex Sign-In** settings apply to them exactly as they do for the primary server. A server's machine identifier is shown by opening `http://<server-address>:32400/identity` in a browser.
 
@@ -31,6 +31,8 @@ Nothing else is multi-server. Library scanning, availability, watchlists, and us
 **Bypass the quota after the fact.** Upstream's **Bypass User Quota** toggle only exists while a request is being made. Users with the **Manage Requests** permission now also get a **Bypass Quota** button on every row of the **Requests** page, at any status except declined, which stops that request counting toward the requester's quota. The button turns into **Restore Quota** to undo it. Nothing else about the request changes and it is not re-sent to Radarr or Sonarr. `PUT /api/v1/request/{requestId}/quota` takes `ignoreQuota` for this.
 
 **The profile card says Season Requests.** The series request limit counts seasons, not series, as the **Series Request Limit** selector in user settings already says. The user profile card was labelled **Series Requests**, which made a user with a handful of multi-season requests look like they had hit the limit early, so it now reads **Season Requests**. The limit itself is unchanged.
+
+**Issue reports double as change requests.** On available movies and series, the warning button's tooltip now reads **Report an Issue or Request a Change** and the form it opens is titled **Issue or Change Request**. The form asks what's wrong or what you'd like changed, with adding the English dub as its example, so asking for a dub, subtitles, or a better copy of something already in the library no longer has to be worded as a problem. It is still an ordinary issue with the same **Video**, **Audio**, **Subtitle**, and **Other** types, and it shows up on the **Issues** page and in notifications as before.
 
 - **Docker image:** `ghcr.io/mandave98/seerr` (`latest` and `sha-*` tags), built automatically from the `fork` branch by the [Fork Docker Image](.github/workflows/fork-docker.yml) workflow.
 - **Branches:** `fork` is upstream `develop` plus our commits and is what we ship. `develop` is left as a pristine copy of upstream. To pick up upstream changes, rebase `fork` onto `upstream/develop` and force-push.
