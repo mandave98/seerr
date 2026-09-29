@@ -94,7 +94,7 @@ const messages = defineMessages('components.MovieDetails', {
   theatricalrelease: 'Theatrical Release',
   digitalrelease: 'Digital Release',
   physicalrelease: 'Physical Release',
-  reportissue: 'Report an Issue or Request a Change',
+  reportissue: 'Request a Change or Report an Issue',
   managemovie: 'Manage Movie',
   rtcriticsscore: 'Rotten Tomatoes Tomatometer',
   rtaudiencescore: 'Rotten Tomatoes Audience Score',
