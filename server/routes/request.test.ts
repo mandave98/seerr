@@ -842,7 +842,7 @@ describe('PUT /request/:requestId (tv), Sonarr search options', () => {
     const requestRepo = getRepository(MediaRequest);
 
     const requestedBy = await userRepo.findOneOrFail({
-      where: { email: 'friend@seerr.dev' },
+      where: { email: 'demo@seerr.dev' },
     });
 
     const media = await mediaRepo.save(
@@ -914,7 +914,7 @@ describe('PUT /request/:requestId (tv), Sonarr search options', () => {
     const requestRepo = getRepository(MediaRequest);
     const mediaRequest = await seedTvRequest();
 
-    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const agent = await loginAs('demo@seerr.dev', 'test1234');
     const res = await agent.put(`/request/${mediaRequest.id}`).send({
       mediaType: MediaType.TV,
       seasons: [1],
@@ -1770,10 +1770,15 @@ async function seedComment(
 }
 
 describe('POST /request/:requestId/comment', () => {
+  // Earlier blocks leave a Radarr configured, which would fail seeded requests
+  beforeEach(() => {
+    getSettings().radarr = [];
+  });
+
   it('lets the owner comment on their own approved request', async () => {
     const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
 
-    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const agent = await loginAs('demo@seerr.dev', 'test1234');
     const res = await agent
       .post(`/request/${mediaRequest.id}/comment`)
       .send({ message: 'Grabbing this one by hand' });
@@ -1784,7 +1789,7 @@ describe('POST /request/:requestId/comment', () => {
       res.body.comments[0].message,
       'Grabbing this one by hand'
     );
-    assert.strictEqual(res.body.comments[0].user.email, 'friend@seerr.dev');
+    assert.strictEqual(res.body.comments[0].user.email, 'demo@seerr.dev');
   });
 
   it("lets a request manager comment on another user's request and counts it", async () => {
@@ -1829,7 +1834,7 @@ describe('POST /request/:requestId/comment', () => {
   it("prevents a non-owner non-manager from commenting on someone else's request", async () => {
     const mediaRequest = await seedRequestOwnedBy('admin@seerr.dev', 77001);
 
-    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const agent = await loginAs('demo@seerr.dev', 'test1234');
     const res = await agent
       .post(`/request/${mediaRequest.id}/comment`)
       .send({ message: 'nope' });
@@ -1850,9 +1855,9 @@ describe('POST /request/:requestId/comment', () => {
 describe('/requestComment/:commentId', () => {
   it('lets the author edit their own comment', async () => {
     const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
-    const comment = await seedComment(mediaRequest, 'friend@seerr.dev', 'v1');
+    const comment = await seedComment(mediaRequest, 'demo@seerr.dev', 'v1');
 
-    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const agent = await loginAs('demo@seerr.dev', 'test1234');
     const res = await agent
       .put(`/requestComment/${comment.id}`)
       .send({ message: 'v2' });
@@ -1863,7 +1868,7 @@ describe('/requestComment/:commentId', () => {
 
   it("prevents a request manager from editing someone else's comment", async () => {
     const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
-    const comment = await seedComment(mediaRequest, 'friend@seerr.dev', 'v1');
+    const comment = await seedComment(mediaRequest, 'demo@seerr.dev', 'v1');
 
     const agent = await loginAs('admin@seerr.dev', 'test1234');
     const res = await agent
@@ -1875,7 +1880,7 @@ describe('/requestComment/:commentId', () => {
 
   it("lets a request manager delete someone else's comment", async () => {
     const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
-    const comment = await seedComment(mediaRequest, 'friend@seerr.dev', 'v1');
+    const comment = await seedComment(mediaRequest, 'demo@seerr.dev', 'v1');
 
     const agent = await loginAs('admin@seerr.dev', 'test1234');
     const res = await agent.delete(`/requestComment/${comment.id}`);
@@ -1889,7 +1894,7 @@ describe('/requestComment/:commentId', () => {
     const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
     const comment = await seedComment(mediaRequest, 'admin@seerr.dev', 'v1');
 
-    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const agent = await loginAs('demo@seerr.dev', 'test1234');
     const res = await agent.delete(`/requestComment/${comment.id}`);
 
     assert.strictEqual(res.status, 403);
@@ -1899,7 +1904,7 @@ describe('/requestComment/:commentId', () => {
     const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
     const comment = await seedComment(mediaRequest, 'admin@seerr.dev', 'v1');
 
-    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const agent = await loginAs('demo@seerr.dev', 'test1234');
     const res = await agent.get(`/requestComment/${comment.id}`);
 
     assert.strictEqual(res.status, 200);
@@ -1910,7 +1915,7 @@ describe('/requestComment/:commentId', () => {
     const mediaRequest = await seedRequestOwnedBy('admin@seerr.dev', 77002);
     const comment = await seedComment(mediaRequest, 'admin@seerr.dev', 'v1');
 
-    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const agent = await loginAs('demo@seerr.dev', 'test1234');
     const res = await agent.get(`/requestComment/${comment.id}`);
 
     assert.strictEqual(res.status, 403);
@@ -1918,11 +1923,16 @@ describe('/requestComment/:commentId', () => {
 });
 
 describe('PUT /request/:requestId/quota', () => {
+  // Earlier blocks leave a Radarr configured, which would fail seeded requests
+  beforeEach(() => {
+    getSettings().radarr = [];
+  });
+
   it('stops an approved request counting toward the quota, and restores it', async () => {
     const userRepo = getRepository(User);
     const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
     const friend = await userRepo.findOneOrFail({
-      where: { email: 'friend@seerr.dev' },
+      where: { email: 'demo@seerr.dev' },
     });
     friend.movieQuotaLimit = 1;
     friend.movieQuotaDays = 7;
@@ -1978,7 +1988,7 @@ describe('PUT /request/:requestId/quota', () => {
   it('is limited to request managers', async () => {
     const mediaRequest = await seedRequest(MediaRequestStatus.APPROVED);
 
-    const agent = await loginAs('friend@seerr.dev', 'test1234');
+    const agent = await loginAs('demo@seerr.dev', 'test1234');
     const res = await agent
       .put(`/request/${mediaRequest.id}/quota`)
       .send({ ignoreQuota: true });
