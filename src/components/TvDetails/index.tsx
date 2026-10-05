@@ -25,6 +25,9 @@ import RequestModal from '@app/components/RequestModal';
 import Slider from '@app/components/Slider';
 import StatusBadge from '@app/components/StatusBadge';
 import Season from '@app/components/TvDetails/Season';
+import SeasonAvailability, {
+  useAvailableSeasonsLabel,
+} from '@app/components/TvDetails/SeasonAvailability';
 import useDeepLinks from '@app/hooks/useDeepLinks';
 import useLocale from '@app/hooks/useLocale';
 import useSettings from '@app/hooks/useSettings';
@@ -179,6 +182,9 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
     iOSPlexUrl: data?.mediaInfo?.iOSPlexUrl,
     iOSPlexUrl4k: data?.mediaInfo?.iOSPlexUrl4k,
   });
+
+  const availableSeasonsLabel = useAvailableSeasonsLabel(data);
+  const availableSeasonsLabel4k = useAvailableSeasonsLabel(data, true);
 
   if (!data && !error) {
     return <LoadingSpinner />;
@@ -573,6 +579,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
               mediaType="tv"
               plexUrl={plexUrl}
               serviceUrl={data.mediaInfo?.serviceUrl}
+              statusLabelOverride={availableSeasonsLabel}
             />
             {settings.currentSettings.series4kEnabled &&
               hasPermission(
@@ -597,6 +604,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                   mediaType="tv"
                   plexUrl={plexUrl4k}
                   serviceUrl={data.mediaInfo?.serviceUrl4k}
+                  statusLabelOverride={availableSeasonsLabel4k}
                 />
               )}
           </div>
@@ -873,7 +881,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                               : 'rounded-md border'
                           }`}
                         >
-                          <div className="flex flex-1 items-center space-x-2 text-lg">
+                          <div className="flex flex-1 flex-wrap items-center space-x-2 text-lg">
                             <span>
                               {season.seasonNumber === 0
                                 ? intl.formatMessage(globalMessages.specials)
@@ -886,6 +894,15 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                                 episodeCount: season.episodeCount,
                               })}
                             </Badge>
+                            <SeasonAvailability
+                              season={season}
+                              mediaSeason={data.mediaInfo?.seasons.find(
+                                (s) => s.seasonNumber === season.seasonNumber
+                              )}
+                              lastEpisodeToAir={data.lastEpisodeToAir}
+                              nextEpisodeToAir={data.nextEpisodeToAir}
+                              show4k={show4k}
+                            />
                           </div>
                           {((!mSeason &&
                             request?.status === MediaRequestStatus.APPROVED) ||

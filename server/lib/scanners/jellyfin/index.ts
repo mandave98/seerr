@@ -23,6 +23,7 @@ import type {
 import BaseScanner from '@server/lib/scanners/baseScanner';
 import type { Library } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
+import { getAiredEpisodeCount } from '@server/utils/airedEpisodes';
 import { getHostname } from '@server/utils/getHostname';
 import { uniqWith } from 'lodash';
 
@@ -209,6 +210,8 @@ class JellyfinScanner
       tvShow = await metadataProvider.getTvShow({
         tvId: Number(tmdbId),
       });
+      // TMDB's last aired episode doesn't follow TVDB's season numbering
+      tvShow = { ...tvShow, last_episode_to_air: undefined };
     }
 
     return tvShow;
@@ -397,14 +400,24 @@ class JellyfinScanner
 
             processableSeasons.push({
               seasonNumber: season.season_number,
-              totalEpisodes: season.episode_count,
+              totalEpisodes: getAiredEpisodeCount({
+                seasonNumber: season.season_number,
+                totalEpisodes: season.episode_count,
+                lastEpisodeToAir: tvShow.last_episode_to_air,
+                episodesOnServer: Math.max(totalStandard, total4k),
+              }),
               episodes: totalStandard,
               episodes4k: total4k,
             });
           } else {
             processableSeasons.push({
               seasonNumber: season.season_number,
-              totalEpisodes: season.episode_count,
+              totalEpisodes: getAiredEpisodeCount({
+                seasonNumber: season.season_number,
+                totalEpisodes: season.episode_count,
+                lastEpisodeToAir: tvShow.last_episode_to_air,
+                episodesOnServer: 0,
+              }),
               episodes: 0,
               episodes4k: 0,
             });

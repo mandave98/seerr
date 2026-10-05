@@ -931,4 +931,118 @@ describe('Sonarr Scanner', () => {
       assert.strictEqual(updated4k.status, MediaRequestStatus.DECLINED);
     });
   });
+
+  describe('airing seasons', () => {
+    const seasonStats = (
+      seasonNumber: number,
+      episodeFileCount: number,
+      totalEpisodeCount: number
+    ) => ({
+      seasonNumber,
+      monitored: true,
+      statistics: {
+        episodeFileCount,
+        totalEpisodeCount,
+        episodeCount: totalEpisodeCount,
+        percentOfEpisodes: 0,
+        sizeOnDisk: 0,
+        previousAiring: undefined,
+      },
+    });
+
+    // Season 2 is airing with episode 4 out; season 3 is announced
+    const airingShow = (
+      tmdbId: number,
+      lastAired?: { season: number; episode: number }
+    ): TmdbTvDetails => ({
+      ...fakeTmdbShow(
+        tmdbId,
+        [1, 2, 3].map((seasonNumber) => ({
+          id: seasonNumber,
+          air_date: '2026-01-01',
+          episode_count: seasonNumber === 3 ? 8 : 10,
+          name: `Season ${seasonNumber}`,
+          overview: '',
+          season_number: seasonNumber,
+        }))
+      ),
+      last_episode_to_air: lastAired && {
+        id: 1,
+        air_date: '2026-10-01',
+        episode_number: lastAired.episode,
+        name: '',
+        overview: '',
+        production_code: '',
+        season_number: lastAired.season,
+        show_id: tmdbId,
+        still_path: '',
+        vote_average: 0,
+        vote_count: 0,
+      },
+    });
+
+    const scanAiringShow = async (
+      tmdbId: number,
+      season2Files: number,
+      lastAired?: { season: number; episode: number }
+    ) => {
+      configureSonarr([{ syncEnabled: true }]);
+      getSeriesImpl = async () => [
+        fakeSonarrSeries({
+          tvdbId: tmdbId + 1000,
+          seasons: [
+            seasonStats(1, 10, 10),
+            seasonStats(2, season2Files, 10),
+            seasonStats(3, 0, 8),
+          ],
+        }),
+      ];
+      getShowByTvdbIdImpl = async () => airingShow(tmdbId, lastAired);
+      getTvShowImpl = async () => airingShow(tmdbId, lastAired);
+
+      await runWithMockTimers(() => sonarrScanner.run());
+
+      const media = await getRepository(Media).findOneOrFail({
+        where: { tmdbId },
+        relations: ['seasons'],
+      });
+      const season = (n: number) =>
+        media.seasons.find((s) => s.seasonNumber === n);
+
+      return { media, season };
+    };
+
+    it('marks a caught-up airing season and the show available', async () => {
+      const { media, season } = await scanAiringShow(3001, 4, {
+        season: 2,
+        episode: 4,
+      });
+
+      assert.strictEqual(season(1)?.status, MediaStatus.AVAILABLE);
+      assert.strictEqual(season(2)?.status, MediaStatus.AVAILABLE);
+      assert.strictEqual(season(3)?.status, MediaStatus.PROCESSING);
+      assert.strictEqual(media.status, MediaStatus.AVAILABLE);
+      assert.strictEqual(season(1)?.libraryEpisodeCount, 10);
+      assert.strictEqual(season(2)?.libraryEpisodeCount, 4);
+      assert.strictEqual(season(3)?.libraryEpisodeCount, null);
+    });
+
+    it('keeps an airing season partial when an aired episode is missing', async () => {
+      const { media, season } = await scanAiringShow(3002, 3, {
+        season: 2,
+        episode: 4,
+      });
+
+      assert.strictEqual(season(2)?.status, MediaStatus.PARTIALLY_AVAILABLE);
+      assert.strictEqual(media.status, MediaStatus.PARTIALLY_AVAILABLE);
+      assert.strictEqual(season(2)?.libraryEpisodeCount, 3);
+    });
+
+    it('falls back to the full season count without a last aired episode', async () => {
+      const { media, season } = await scanAiringShow(3003, 4);
+
+      assert.strictEqual(season(2)?.status, MediaStatus.PARTIALLY_AVAILABLE);
+      assert.strictEqual(media.status, MediaStatus.PARTIALLY_AVAILABLE);
+    });
+  });
 });

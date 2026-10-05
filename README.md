@@ -16,7 +16,7 @@
 > [!WARNING]
 > This is a personal fork of [seerr-team/seerr](https://github.com/seerr-team/seerr) maintained for our own deployment. It is **not supported for public use**: use it at your own risk, expect it to break, and do not report problems with this fork to the Seerr maintainers or in Seerr's Discord or issue tracker.
 
-There are seven changes on top of upstream.
+There are eight changes on top of upstream.
 
 **Plex sign-in for additional Plex servers.** Under **Settings → Users**, the **Additional Plex Servers** field takes a comma-separated list of Plex machine identifiers. Plex accounts with access to any of those servers can sign in, and the existing **Enable Plex Sign-In** and **Enable New Plex Sign-In** settings apply to them exactly as they do for the primary server. A server's machine identifier is shown by opening `http://<server-address>:32400/identity` in a browser.
 
@@ -33,6 +33,10 @@ Nothing else is multi-server. Library scanning, availability, watchlists, and us
 **The profile card says Season Requests.** The series request limit counts seasons, not series, as the **Series Request Limit** selector in user settings already says. The user profile card was labelled **Series Requests**, which made a user with a handful of multi-season requests look like they had hit the limit early, so it now reads **Season Requests**. The limit itself is unchanged.
 
 **Issue reports double as change requests.** On available movies and series, the warning button's tooltip now reads **Request a Change or Report an Issue** and the form it opens is titled **Issue or Change Request**. The form asks what's wrong or what you'd like changed, so asking for a dub, subtitles, or a better copy of something already in the library no longer has to be worded as a problem. It is still an ordinary issue with the same **Video**, **Audio**, **Subtitle**, and **Other** types, and it shows up on the **Issues** page and in notifications as before.
+
+**Airing seasons count as available once caught up.** Upstream compares the episodes in the library against every episode TMDB lists for a season, including ones that haven't aired, so a season that is still airing stays **Partially Available** even when nothing released is missing. The Plex, Jellyfin, and Sonarr scans now only count episodes up to TMDB's last aired episode, and seasons that haven't started airing no longer hold the whole series back. A season with a missing aired episode is still **Partially Available**. Because upstream never moves a season back from **Available**, an airing season that was caught up stays **Available** even if a later episode never arrives, and a request for it completes, with its notification, as soon as it is caught up. When the TV or anime metadata provider is TheTVDB, the scans count every episode as upstream does, since TMDB's last aired episode doesn't follow TheTVDB's season numbering.
+
+Each season on a series page now also shows how many episodes are in the library and when the next one airs, for example **4 of 4 aired in library · Next episode Oct 12, 2026**, **18 of 22 in library**, or **Premieres Oct 8, 2026**. The counts come from new `season.libraryEpisodeCount` and `libraryEpisodeCount4k` columns that fill in on the next library scan. When a series is partially available only because whole seasons were never requested, its badge names them, such as **Season 3 Available** or **Seasons 1–2, 5 Available**, and falls back to **3 of 7 Seasons Available** when the list would be long.
 
 - **Docker image:** `ghcr.io/mandave98/seerr` (`latest` and `sha-*` tags), built automatically from the `fork` branch by the [Fork Docker Image](.github/workflows/fork-docker.yml) workflow.
 - **Branches:** `fork` is upstream `develop` plus our commits and is what we ship. `develop` is left as a pristine copy of upstream. To pick up upstream changes, rebase `fork` onto `upstream/develop` and force-push.

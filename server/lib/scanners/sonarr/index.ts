@@ -19,6 +19,7 @@ import type {
 import BaseScanner from '@server/lib/scanners/baseScanner';
 import type { SonarrSettings } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
+import { getAiredEpisodeCount } from '@server/utils/airedEpisodes';
 import { uniqWith } from 'lodash';
 
 type SyncStatus = StatusBase & {
@@ -181,6 +182,8 @@ class SonarrScanner
 
       if (!(metadataProvider instanceof TheMovieDb)) {
         tvShow = await metadataProvider.getTvShow({ tvId: tmdbId });
+        // TMDB's last aired episode doesn't follow TVDB's season numbering
+        tvShow = { ...tvShow, last_episode_to_air: undefined };
       }
 
       const settings = getSettings();
@@ -215,7 +218,12 @@ class SonarrScanner
           seasonNumber: season.seasonNumber,
           episodes: !server4k ? totalAvailableEpisodes : 0,
           episodes4k: server4k ? totalAvailableEpisodes : 0,
-          totalEpisodes: season.statistics?.totalEpisodeCount ?? 0,
+          totalEpisodes: getAiredEpisodeCount({
+            seasonNumber: season.seasonNumber,
+            totalEpisodes: season.statistics?.totalEpisodeCount ?? 0,
+            lastEpisodeToAir: tvShow.last_episode_to_air,
+            episodesOnServer: totalAvailableEpisodes,
+          }),
           processing: season.monitored && totalAvailableEpisodes === 0,
           is4kOverride: server4k,
         });

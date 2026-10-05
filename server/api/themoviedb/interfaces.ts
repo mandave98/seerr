@@ -312,6 +312,7 @@ export interface TmdbTvScanDetails {
   keywords: {
     results: TmdbKeyword[];
   };
+  last_episode_to_air?: TmdbTvEpisodeResult;
 }
 
 export interface TmdbVideoResult {

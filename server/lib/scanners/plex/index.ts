@@ -20,6 +20,7 @@ import type {
 import BaseScanner from '@server/lib/scanners/baseScanner';
 import type { Library } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
+import { getAiredEpisodeCount } from '@server/utils/airedEpisodes';
 import { uniqWith } from 'lodash';
 
 const imdbRegex = new RegExp(/imdb:\/\/(tt[0-9]+)/);
@@ -289,6 +290,8 @@ class PlexScanner
       tvShow = await metadataProvider.getTvShow({
         tvId: Number(tmdbId),
       });
+      // TMDB's last aired episode doesn't follow TVDB's season numbering
+      tvShow = { ...tvShow, last_episode_to_air: undefined };
     }
 
     return tvShow;
@@ -358,14 +361,24 @@ class PlexScanner
           seasonNumber: season.season_number,
           episodes: totalStandard,
           episodes4k: total4k,
-          totalEpisodes: season.episode_count,
+          totalEpisodes: getAiredEpisodeCount({
+            seasonNumber: season.season_number,
+            totalEpisodes: season.episode_count,
+            lastEpisodeToAir: tvShow.last_episode_to_air,
+            episodesOnServer: Math.max(totalStandard, total4k),
+          }),
         });
       } else {
         processableSeasons.push({
           seasonNumber: season.season_number,
           episodes: 0,
           episodes4k: 0,
-          totalEpisodes: season.episode_count,
+          totalEpisodes: getAiredEpisodeCount({
+            seasonNumber: season.season_number,
+            totalEpisodes: season.episode_count,
+            lastEpisodeToAir: tvShow.last_episode_to_air,
+            episodesOnServer: 0,
+          }),
         });
       }
     }

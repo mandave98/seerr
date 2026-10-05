@@ -24,6 +24,13 @@ class Season {
   @Column({ type: 'int', default: MediaStatus.UNKNOWN })
   public status4k: MediaStatus;
 
+  // Episodes last seen by a scanner; null until a scan has counted any
+  @Column({ type: 'int', nullable: true })
+  public libraryEpisodeCount?: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  public libraryEpisodeCount4k?: number | null;
+
   @ManyToOne(() => Media, (media) => media.seasons, {
     onDelete: 'CASCADE',
   })

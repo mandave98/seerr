@@ -250,7 +250,8 @@ const StatusBadge = ({
                   {
                     status: inProgress
                       ? intl.formatMessage(globalMessages.processing)
-                      : intl.formatMessage(globalMessages.partiallyavailable),
+                      : (statusLabelOverride ??
+                        intl.formatMessage(globalMessages.partiallyavailable)),
                   }
                 )}
               </span>

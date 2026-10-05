@@ -389,6 +389,16 @@ class BaseScanner<T> {
                       existingSeason.status4k === MediaStatus.PROCESSING
                     ? MediaStatus.UNKNOWN
                     : existingSeason.status4k;
+
+          // Zero counts are skipped like the statuses above, so a scan that
+          // can't see this season doesn't wipe a count another scan found
+          if (season.episodes > 0) {
+            existingSeason.libraryEpisodeCount = season.episodes;
+          }
+
+          if (this.enable4kShow && season.episodes4k > 0) {
+            existingSeason.libraryEpisodeCount4k = season.episodes4k;
+          }
         } else {
           newSeasons.push(
             new Season({
@@ -411,6 +421,11 @@ class BaseScanner<T> {
                     : season.is4kOverride && season.processing
                       ? MediaStatus.PROCESSING
                       : MediaStatus.UNKNOWN,
+              libraryEpisodeCount: season.episodes > 0 ? season.episodes : null,
+              libraryEpisodeCount4k:
+                this.enable4kShow && season.episodes4k > 0
+                  ? season.episodes4k
+                  : null,
             })
           );
         }
