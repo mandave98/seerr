@@ -21,7 +21,7 @@ const messages = defineMessages('components.TvDetails.SeasonAvailability', {
   upcoming: 'Upcoming',
   seasonsavailable:
     '{seasonCount, plural, one {Season} other {Seasons}} {seasons} Available',
-  seasonsofavailable: '{count} of {total} Seasons Available',
+  selectseasonsavailable: 'Select Seasons Available',
 });
 
 const shownStatuses = [MediaStatus.AVAILABLE, MediaStatus.PARTIALLY_AVAILABLE];
@@ -144,10 +144,12 @@ const SeasonAvailability = ({
 /**
  * Names the available seasons for a partially available show's badge, e.g.
  * "Season 3 Available", when it's partial because whole seasons are missing.
+ * With requested seasons, every aired one of them must be available too.
  */
 export const useAvailableSeasonsLabel = (
   data: TvDetails | undefined,
-  is4k = false
+  is4k = false,
+  requestedSeasons?: number[]
 ): string | undefined => {
   const intl = useIntl();
 
@@ -159,29 +161,27 @@ export const useAvailableSeasonsLabel = (
     return undefined;
   }
 
-  const result = getAvailableSeasonNumbers({
+  const available = getAvailableSeasonNumbers({
     seasons: data.seasons,
     mediaSeasons: data.mediaInfo.seasons,
     lastEpisodeToAir: data.lastEpisodeToAir,
     is4k,
+    requestedSeasons,
   });
 
-  if (!result) {
+  if (!available) {
     return undefined;
   }
 
-  const ranges = groupSeasonRanges(result.available);
+  const ranges = groupSeasonRanges(available);
 
-  // Past two runs a list gets long, so fall back to a count
+  // Past two runs the list stops fitting in a badge
   if (ranges.length > 2) {
-    return intl.formatMessage(messages.seasonsofavailable, {
-      count: result.available.length,
-      total: result.airedSeasonCount,
-    });
+    return intl.formatMessage(messages.selectseasonsavailable);
   }
 
   return intl.formatMessage(messages.seasonsavailable, {
-    seasonCount: result.available.length,
+    seasonCount: available.length,
     seasons: ranges
       .map(([start, end]) => (start === end ? `${start}` : `${start}–${end}`))
       .join(', '),

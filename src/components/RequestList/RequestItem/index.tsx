@@ -6,6 +6,7 @@ import ConfirmButton from '@app/components/Common/ConfirmButton';
 import RequestCommentsModal from '@app/components/RequestComments';
 import RequestModal from '@app/components/RequestModal';
 import StatusBadge from '@app/components/StatusBadge';
+import { useAvailableSeasonsLabel } from '@app/components/TvDetails/SeasonAvailability';
 import useDeepLinks from '@app/hooks/useDeepLinks';
 import useToasts from '@app/hooks/useToasts';
 import { Permission, useUser } from '@app/hooks/useUser';
@@ -331,6 +332,11 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
       15000
     ),
   });
+  const availableSeasonsLabel = useAvailableSeasonsLabel(
+    title && !isMovie(title) ? title : undefined,
+    request.is4k,
+    (requestData ?? request).seasons.map((season) => season.seasonNumber)
+  );
 
   const [isRetrying, setRetrying] = useState(false);
   const [updatingType, setUpdatingType] = useState<
@@ -594,6 +600,7 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
                       ? requestData.media.serviceUrl4k
                       : requestData.media.serviceUrl
                   }
+                  statusLabelOverride={availableSeasonsLabel}
                 />
               )}
             </div>

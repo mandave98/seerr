@@ -23,13 +23,15 @@ export const getSeasonAiredEpisodes = (
 /**
  * The aired seasons that are available, when the show is only partially
  * available because whole seasons are missing. Undefined when some season is
- * missing episodes or none is available, so the generic label still fits.
+ * missing episodes, an aired requested season isn't available, or none is
+ * available, so the generic label still fits.
  */
 export const getAvailableSeasonNumbers = ({
   seasons,
   mediaSeasons,
   lastEpisodeToAir,
   is4k = false,
+  requestedSeasons,
 }: {
   seasons: Pick<TvSeason, 'seasonNumber' | 'episodeCount'>[];
   mediaSeasons: Pick<
@@ -42,7 +44,8 @@ export const getAvailableSeasonNumbers = ({
   >[];
   lastEpisodeToAir: TvDetails['lastEpisodeToAir'];
   is4k?: boolean;
-}): { available: number[]; airedSeasonCount: number } | undefined => {
+  requestedSeasons?: number[];
+}): number[] | undefined => {
   const airedStatuses = seasons
     .filter((season) => season.seasonNumber !== 0)
     .map((season) => {
@@ -64,7 +67,10 @@ export const getAvailableSeasonNumbers = ({
 
   if (
     airedStatuses.some(
-      (season) => season.status === MediaStatus.PARTIALLY_AVAILABLE
+      (season) =>
+        season.status === MediaStatus.PARTIALLY_AVAILABLE ||
+        (requestedSeasons?.includes(season.seasonNumber) &&
+          season.status !== MediaStatus.AVAILABLE)
     )
   ) {
     return undefined;
@@ -75,9 +81,7 @@ export const getAvailableSeasonNumbers = ({
     .map((season) => season.seasonNumber)
     .sort((a, b) => a - b);
 
-  return available.length > 0
-    ? { available, airedSeasonCount: airedStatuses.length }
-    : undefined;
+  return available.length > 0 ? available : undefined;
 };
 
 /** Collapses sorted season numbers into runs, e.g. [1, 2, 3, 5] → [[1, 3], [5, 5]]. */

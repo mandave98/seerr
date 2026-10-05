@@ -46,7 +46,7 @@ describe('getAvailableSeasonNumbers', () => {
         mediaSeasons: [mediaSeason(3, MediaStatus.AVAILABLE, 4)],
         lastEpisodeToAir,
       }),
-      { available: [3], airedSeasonCount: 3 }
+      [3]
     );
   });
 
@@ -61,7 +61,7 @@ describe('getAvailableSeasonNumbers', () => {
         ],
         lastEpisodeToAir,
       }),
-      { available: [1], airedSeasonCount: 3 }
+      [1]
     );
   });
 
@@ -108,7 +108,39 @@ describe('getAvailableSeasonNumbers', () => {
         lastEpisodeToAir,
         is4k: true,
       }),
-      { available: [2], airedSeasonCount: 3 }
+      [2]
+    );
+  });
+
+  it('keeps the generic label when an aired requested season is not in', () => {
+    assert.strictEqual(
+      getAvailableSeasonNumbers({
+        seasons,
+        mediaSeasons: [
+          mediaSeason(1, MediaStatus.AVAILABLE, 10),
+          mediaSeason(2, MediaStatus.PROCESSING),
+        ],
+        lastEpisodeToAir,
+        requestedSeasons: [2],
+      }),
+      undefined
+    );
+  });
+
+  it('names seasons when every aired requested season is in', () => {
+    assert.deepStrictEqual(
+      getAvailableSeasonNumbers({
+        seasons,
+        mediaSeasons: [
+          mediaSeason(1, MediaStatus.AVAILABLE, 10),
+          mediaSeason(3, MediaStatus.AVAILABLE, 4),
+          mediaSeason(4, MediaStatus.PROCESSING),
+        ],
+        lastEpisodeToAir,
+        // Season 4 hasn't aired, so it can't be missing yet
+        requestedSeasons: [3, 4],
+      }),
+      [1, 3]
     );
   });
 });

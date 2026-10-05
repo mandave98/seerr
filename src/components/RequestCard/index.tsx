@@ -5,6 +5,7 @@ import CachedImage from '@app/components/Common/CachedImage';
 import Tooltip from '@app/components/Common/Tooltip';
 import RequestModal from '@app/components/RequestModal';
 import StatusBadge from '@app/components/StatusBadge';
+import { useAvailableSeasonsLabel } from '@app/components/TvDetails/SeasonAvailability';
 import useDeepLinks from '@app/hooks/useDeepLinks';
 import useToasts from '@app/hooks/useToasts';
 import { Permission, useUser } from '@app/hooks/useUser';
@@ -254,6 +255,11 @@ const RequestCard = ({ request, onTitleData }: RequestCardProps) => {
       ),
     }
   );
+  const availableSeasonsLabel = useAvailableSeasonsLabel(
+    title && !isMovie(title) ? title : undefined,
+    request.is4k,
+    (requestData ?? request).seasons.map((season) => season.seasonNumber)
+  );
 
   const { mediaUrl: plexUrl, mediaUrl4k: plexUrl4k } = useDeepLinks({
     mediaUrl: requestData?.media?.mediaUrl,
@@ -474,6 +480,7 @@ const RequestCard = ({ request, onTitleData }: RequestCardProps) => {
                     ? requestData.media.serviceUrl4k
                     : requestData.media.serviceUrl
                 }
+                statusLabelOverride={availableSeasonsLabel}
               />
             )}
           </div>

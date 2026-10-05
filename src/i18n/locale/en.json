@@ -1396,7 +1396,7 @@
   "components.TvDetails.SeasonAvailability.nextepisode": "Next episode {date}",
   "components.TvDetails.SeasonAvailability.premieres": "Premieres {date}",
   "components.TvDetails.SeasonAvailability.seasonsavailable": "{seasonCount, plural, one {Season} other {Seasons}} {seasons} Available",
-  "components.TvDetails.SeasonAvailability.seasonsofavailable": "{count} of {total} Seasons Available",
+  "components.TvDetails.SeasonAvailability.selectseasonsavailable": "Select Seasons Available",
   "components.TvDetails.SeasonAvailability.upcoming": "Upcoming",
   "components.TvDetails.SeasonAvailability.upcomingepisodes": "{count, plural, one {# episode} other {# episodes}} upcoming",
   "components.TvDetails.TvCast.fullseriescast": "Full Series Cast",
