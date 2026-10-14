@@ -290,8 +290,6 @@ class PlexScanner
       tvShow = await metadataProvider.getTvShow({
         tvId: Number(tmdbId),
       });
-      // TMDB's last aired episode doesn't follow TVDB's season numbering
-      tvShow = { ...tvShow, last_episode_to_air: undefined };
     }
 
     return tvShow;

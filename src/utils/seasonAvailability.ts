@@ -3,10 +3,21 @@ import type Season from '@server/entity/Season';
 import type { TvDetails } from '@server/models/Tv';
 import { getAiredEpisodeCount } from '@server/utils/airedEpisodes';
 
-type TvSeason = TvDetails['seasons'][number];
+type TvSeason = Pick<
+  TvDetails['seasons'][number],
+  'seasonNumber' | 'episodeCount'
+>;
+type MediaSeason = Pick<
+  Season,
+  | 'seasonNumber'
+  | 'status'
+  | 'status4k'
+  | 'libraryEpisodeCount'
+  | 'libraryEpisodeCount4k'
+>;
 
 export const getSeasonAiredEpisodes = (
-  season: Pick<TvSeason, 'seasonNumber' | 'episodeCount'>,
+  season: TvSeason,
   lastEpisodeToAir: TvDetails['lastEpisodeToAir'],
   libraryEpisodeCount?: number | null
 ): number =>
@@ -21,32 +32,67 @@ export const getSeasonAiredEpisodes = (
   });
 
 /**
- * The aired seasons that are available, when the show is only partially
- * available because whole seasons are missing. Undefined when some season is
- * missing episodes, an aired requested season isn't available, or none is
- * available, so the generic label still fits.
+ * How a season should read. With a stored episode count the season is judged
+ * against today's aired episodes, so it doesn't wait for the next scan, and a
+ * season that stayed Available while new episodes went missing reads as
+ * partial. `airing` marks an available season with episodes still to come.
  */
-export const getAvailableSeasonNumbers = ({
+export const getSeasonDisplay = (
+  season: TvSeason,
+  mediaSeason: MediaSeason | undefined,
+  lastEpisodeToAir: TvDetails['lastEpisodeToAir'],
+  is4k = false
+): { status?: MediaStatus; airing: boolean } => {
+  const status = mediaSeason?.[is4k ? 'status4k' : 'status'];
+  const count =
+    mediaSeason?.[is4k ? 'libraryEpisodeCount4k' : 'libraryEpisodeCount'];
+
+  if (
+    status !== MediaStatus.AVAILABLE &&
+    status !== MediaStatus.PARTIALLY_AVAILABLE
+  ) {
+    return { status, airing: false };
+  }
+
+  const aired = getSeasonAiredEpisodes(season, lastEpisodeToAir, count);
+  const displayStatus =
+    count == null
+      ? status
+      : count > 0 && count >= aired
+        ? MediaStatus.AVAILABLE
+        : MediaStatus.PARTIALLY_AVAILABLE;
+
+  return {
+    status: displayStatus,
+    airing:
+      displayStatus === MediaStatus.AVAILABLE && aired < season.episodeCount,
+  };
+};
+
+/**
+ * Sums up the aired regular seasons for a series badge: `partial` when a
+ * season is missing aired episodes or an aired requested season isn't in,
+ * otherwise whether all or some of them are available, and whether any
+ * available one is still airing.
+ */
+export const getSeasonsSummary = ({
   seasons,
   mediaSeasons,
   lastEpisodeToAir,
   is4k = false,
   requestedSeasons,
 }: {
-  seasons: Pick<TvSeason, 'seasonNumber' | 'episodeCount'>[];
-  mediaSeasons: Pick<
-    Season,
-    | 'seasonNumber'
-    | 'status'
-    | 'status4k'
-    | 'libraryEpisodeCount'
-    | 'libraryEpisodeCount4k'
-  >[];
+  seasons: TvSeason[];
+  mediaSeasons: MediaSeason[];
   lastEpisodeToAir: TvDetails['lastEpisodeToAir'];
   is4k?: boolean;
   requestedSeasons?: number[];
-}): number[] | undefined => {
-  const airedStatuses = seasons
+}): {
+  state: 'partial' | 'all' | 'some' | 'none';
+  available: number[];
+  airing: boolean;
+} => {
+  const aired = seasons
     .filter((season) => season.seasonNumber !== 0)
     .map((season) => {
       const mediaSeason = mediaSeasons.find(
@@ -55,33 +101,42 @@ export const getAvailableSeasonNumbers = ({
 
       return {
         seasonNumber: season.seasonNumber,
-        status: mediaSeason?.[is4k ? 'status4k' : 'status'],
         aired: getSeasonAiredEpisodes(
           season,
           lastEpisodeToAir,
           mediaSeason?.[is4k ? 'libraryEpisodeCount4k' : 'libraryEpisodeCount']
         ),
+        ...getSeasonDisplay(season, mediaSeason, lastEpisodeToAir, is4k),
       };
     })
     .filter((season) => season.aired > 0);
 
-  if (
-    airedStatuses.some(
-      (season) =>
-        season.status === MediaStatus.PARTIALLY_AVAILABLE ||
-        (requestedSeasons?.includes(season.seasonNumber) &&
-          season.status !== MediaStatus.AVAILABLE)
-    )
-  ) {
-    return undefined;
-  }
-
-  const available = airedStatuses
-    .filter((season) => season.status === MediaStatus.AVAILABLE)
+  const availableSeasons = aired.filter(
+    (season) => season.status === MediaStatus.AVAILABLE
+  );
+  const available = availableSeasons
     .map((season) => season.seasonNumber)
     .sort((a, b) => a - b);
+  const airing = availableSeasons.some((season) => season.airing);
 
-  return available.length > 0 ? available : undefined;
+  const partial = aired.some(
+    (season) =>
+      season.status === MediaStatus.PARTIALLY_AVAILABLE ||
+      (requestedSeasons?.includes(season.seasonNumber) &&
+        season.status !== MediaStatus.AVAILABLE)
+  );
+
+  return {
+    state: partial
+      ? 'partial'
+      : available.length === 0
+        ? 'none'
+        : available.length === aired.length
+          ? 'all'
+          : 'some',
+    available,
+    airing,
+  };
 };
 
 /** Collapses sorted season numbers into runs, e.g. [1, 2, 3, 5] → [[1, 3], [5, 5]]. */

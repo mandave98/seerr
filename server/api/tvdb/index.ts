@@ -17,6 +17,7 @@ import {
 } from '@server/api/tvdb/interfaces';
 import cacheManager, { type AvailableCacheIds } from '@server/lib/cache';
 import logger from '@server/logger';
+import { getTvdbAiringEpisodes } from '@server/utils/airedEpisodes';
 
 interface TvdbConfig {
   baseUrl: string;
@@ -248,7 +249,11 @@ class Tvdb extends ExternalAPI implements TvShowProvider {
         return tmdbTvShow;
       }
 
-      return { ...tmdbTvShow, seasons };
+      return {
+        ...tmdbTvShow,
+        seasons,
+        ...getTvdbAiringEpisodes(tvdbData.episodes, tmdbTvShow.id),
+      };
     } catch (error) {
       logger.error(
         `Failed to enrich TMDB show with TVDB data: ${error.message} token: ${this.token}`

@@ -1,7 +1,8 @@
+import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
 import {
-  getAvailableSeasonNumbers,
   getSeasonAiredEpisodes,
+  getSeasonsSummary,
   groupSeasonRanges,
 } from '@app/utils/seasonAvailability';
 import { MediaStatus } from '@server/constants/media';
@@ -9,20 +10,27 @@ import type Season from '@server/entity/Season';
 import type { TvDetails } from '@server/models/Tv';
 import { useIntl } from 'react-intl';
 
-const messages = defineMessages('components.TvDetails.SeasonAvailability', {
-  inlibrary: '{count} of {total} in library',
-  airedinlibrary: '{count} of {aired} aired in library',
-  inlibrary4k: '{count} of {total} in 4K',
-  airedinlibrary4k: '{count} of {aired} aired in 4K',
-  nextepisode: 'Next episode {date}',
-  premieres: 'Premieres {date}',
-  upcomingepisodes:
-    '{count, plural, one {# episode} other {# episodes}} upcoming',
-  upcoming: 'Upcoming',
-  seasonsavailable:
-    '{seasonCount, plural, one {Season} other {Seasons}} {seasons} Available',
-  selectseasonsavailable: 'Select Seasons Available',
-});
+export const messages = defineMessages(
+  'components.TvDetails.SeasonAvailability',
+  {
+    inlibrary: '{count} of {total} in library',
+    airedinlibrary: '{count} of {aired} aired in library',
+    inlibrary4k: '{count} of {total} in 4K',
+    airedinlibrary4k: '{count} of {aired} aired in 4K',
+    nextepisode: 'Next episode {date}',
+    premieres: 'Premieres {date}',
+    upcomingepisodes:
+      '{count, plural, one {# episode} other {# episodes}} upcoming',
+    upcoming: 'Upcoming',
+    seasonsavailable:
+      '{seasonCount, plural, one {Season} other {Seasons}} {seasons} Available',
+    selectseasonsavailable: 'Select Seasons Available',
+    uptodate: 'Up to Date',
+    seasonsuptodate:
+      '{seasonCount, plural, one {Season} other {Seasons}} {seasons} Up to Date',
+    selectseasonsuptodate: 'Select Seasons Up to Date',
+  }
+);
 
 const shownStatuses = [MediaStatus.AVAILABLE, MediaStatus.PARTIALLY_AVAILABLE];
 
@@ -142,9 +150,10 @@ const SeasonAvailability = ({
 };
 
 /**
- * Names the available seasons for a partially available show's badge, e.g.
- * "Season 3 Available", when it's partial because whole seasons are missing.
- * With requested seasons, every aired one of them must be available too.
+ * The label for an available or partially available series badge: "Up to
+ * Date" when every aired season is in but one is still airing, the seasons by
+ * name ("Season 3 Available") when only some are in, and "Partially
+ * Available" when an aired season, or an aired requested one, is missing.
  */
 export const useAvailableSeasonsLabel = (
   data: TvDetails | undefined,
@@ -152,16 +161,17 @@ export const useAvailableSeasonsLabel = (
   requestedSeasons?: number[]
 ): string | undefined => {
   const intl = useIntl();
+  const mediaStatus = data?.mediaInfo?.[is4k ? 'status4k' : 'status'];
 
   if (
     !data?.mediaInfo ||
-    data.mediaInfo[is4k ? 'status4k' : 'status'] !==
-      MediaStatus.PARTIALLY_AVAILABLE
+    (mediaStatus !== MediaStatus.AVAILABLE &&
+      mediaStatus !== MediaStatus.PARTIALLY_AVAILABLE)
   ) {
     return undefined;
   }
 
-  const available = getAvailableSeasonNumbers({
+  const { state, available, airing } = getSeasonsSummary({
     seasons: data.seasons,
     mediaSeasons: data.mediaInfo.seasons,
     lastEpisodeToAir: data.lastEpisodeToAir,
@@ -169,23 +179,38 @@ export const useAvailableSeasonsLabel = (
     requestedSeasons,
   });
 
-  if (!available) {
+  if (state === 'none') {
     return undefined;
+  }
+
+  if (state === 'partial') {
+    return intl.formatMessage(globalMessages.partiallyavailable);
+  }
+
+  if (state === 'all') {
+    return intl.formatMessage(
+      airing ? messages.uptodate : globalMessages.available
+    );
   }
 
   const ranges = groupSeasonRanges(available);
 
   // Past two runs the list stops fitting in a badge
   if (ranges.length > 2) {
-    return intl.formatMessage(messages.selectseasonsavailable);
+    return intl.formatMessage(
+      airing ? messages.selectseasonsuptodate : messages.selectseasonsavailable
+    );
   }
 
-  return intl.formatMessage(messages.seasonsavailable, {
-    seasonCount: available.length,
-    seasons: ranges
-      .map(([start, end]) => (start === end ? `${start}` : `${start}–${end}`))
-      .join(', '),
-  });
+  return intl.formatMessage(
+    airing ? messages.seasonsuptodate : messages.seasonsavailable,
+    {
+      seasonCount: available.length,
+      seasons: ranges
+        .map(([start, end]) => (start === end ? `${start}` : `${start}–${end}`))
+        .join(', '),
+    }
+  );
 };
 
 export default SeasonAvailability;

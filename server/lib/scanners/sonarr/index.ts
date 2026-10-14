@@ -182,8 +182,6 @@ class SonarrScanner
 
       if (!(metadataProvider instanceof TheMovieDb)) {
         tvShow = await metadataProvider.getTvShow({ tvId: tmdbId });
-        // TMDB's last aired episode doesn't follow TVDB's season numbering
-        tvShow = { ...tvShow, last_episode_to_air: undefined };
       }
 
       const settings = getSettings();

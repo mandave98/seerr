@@ -26,6 +26,7 @@ import Slider from '@app/components/Slider';
 import StatusBadge from '@app/components/StatusBadge';
 import Season from '@app/components/TvDetails/Season';
 import SeasonAvailability, {
+  messages as seasonAvailabilityMessages,
   useAvailableSeasonsLabel,
 } from '@app/components/TvDetails/SeasonAvailability';
 import useDeepLinks from '@app/hooks/useDeepLinks';
@@ -38,6 +39,7 @@ import ErrorPage from '@app/pages/_error';
 import { sortCrewPriority } from '@app/utils/creditHelpers';
 import defineMessages from '@app/utils/defineMessages';
 import { refreshIntervalHelper } from '@app/utils/refreshIntervalHelper';
+import { getSeasonDisplay } from '@app/utils/seasonAvailability';
 import {
   Disclosure,
   DisclosureButton,
@@ -841,6 +843,17 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                     season.seasonNumber === s.seasonNumber &&
                     s.status4k !== MediaStatus.UNKNOWN
                 );
+                const seasonDisplay = getSeasonDisplay(
+                  season,
+                  mSeason,
+                  data.lastEpisodeToAir
+                );
+                const seasonDisplay4k = getSeasonDisplay(
+                  season,
+                  mSeason4k,
+                  data.lastEpisodeToAir,
+                  true
+                );
                 const request = (data.mediaInfo?.requests ?? [])
                   .filter(
                     (r) =>
@@ -936,7 +949,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                               </div>
                             </>
                           )}
-                          {mSeason?.status ===
+                          {seasonDisplay.status ===
                             MediaStatus.PARTIALLY_AVAILABLE && (
                             <>
                               <div className="hidden md:flex">
@@ -953,11 +966,15 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                               </div>
                             </>
                           )}
-                          {mSeason?.status === MediaStatus.AVAILABLE && (
+                          {seasonDisplay.status === MediaStatus.AVAILABLE && (
                             <>
                               <div className="hidden md:flex">
                                 <Badge badgeType="success">
-                                  {intl.formatMessage(globalMessages.available)}
+                                  {intl.formatMessage(
+                                    seasonDisplay.airing
+                                      ? seasonAvailabilityMessages.uptodate
+                                      : globalMessages.available
+                                  )}
                                 </Badge>
                               </div>
                               <div className="flex md:hidden">
@@ -1030,7 +1047,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                                 </div>
                               </>
                             )}
-                          {mSeason4k?.status4k ===
+                          {seasonDisplay4k.status ===
                             MediaStatus.PARTIALLY_AVAILABLE &&
                             show4k && (
                               <>
@@ -1051,14 +1068,16 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                                 </div>
                               </>
                             )}
-                          {mSeason4k?.status4k === MediaStatus.AVAILABLE &&
+                          {seasonDisplay4k.status === MediaStatus.AVAILABLE &&
                             show4k && (
                               <>
                                 <div className="hidden md:flex">
                                   <Badge badgeType="success">
                                     {intl.formatMessage(messages.status4k, {
                                       status: intl.formatMessage(
-                                        globalMessages.available
+                                        seasonDisplay4k.airing
+                                          ? seasonAvailabilityMessages.uptodate
+                                          : globalMessages.available
                                       ),
                                     })}
                                   </Badge>

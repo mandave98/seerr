@@ -2,7 +2,8 @@ import { MediaStatus } from '@server/constants/media';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
-  getAvailableSeasonNumbers,
+  getSeasonDisplay,
+  getSeasonsSummary,
   groupSeasonRanges,
 } from './seasonAvailability';
 
@@ -11,20 +12,22 @@ const seasons = [0, 1, 2, 3, 4].map((seasonNumber) => ({
   episodeCount: 10,
 }));
 
-// Season 3 is airing (4 of 10 out) and season 4 is announced
-const lastEpisodeToAir = {
+const lastAired = (seasonNumber: number, episodeNumber: number) => ({
   id: 1,
   airDate: '2026-10-01',
-  episodeNumber: 4,
+  episodeNumber,
   name: '',
   overview: '',
   productionCode: '',
-  seasonNumber: 3,
+  seasonNumber,
   showId: 1,
   voteAverage: 0,
   voteCount: 0,
   stillPath: '',
-};
+});
+
+// Season 3 is airing (4 of 10 out) and season 4 is announced
+const lastEpisodeToAir = lastAired(3, 4);
 
 const mediaSeason = (
   seasonNumber: number,
@@ -38,67 +41,152 @@ const mediaSeason = (
   libraryEpisodeCount4k: null,
 });
 
-describe('getAvailableSeasonNumbers', () => {
+describe('getSeasonDisplay', () => {
+  it('reads a caught-up airing season as available and airing', () => {
+    assert.deepStrictEqual(
+      getSeasonDisplay(
+        seasons[3],
+        mediaSeason(3, MediaStatus.AVAILABLE, 4),
+        lastEpisodeToAir
+      ),
+      { status: MediaStatus.AVAILABLE, airing: true }
+    );
+  });
+
+  it('corrects a partial season the last scan judged against unaired episodes', () => {
+    // VisionQuest: 2 of 8 out, both in Plex, stored partial
+    assert.deepStrictEqual(
+      getSeasonDisplay(
+        { seasonNumber: 1, episodeCount: 8 },
+        mediaSeason(1, MediaStatus.PARTIALLY_AVAILABLE, 2),
+        lastAired(1, 2)
+      ),
+      { status: MediaStatus.AVAILABLE, airing: true }
+    );
+  });
+
+  it('shows a season that stayed available but fell behind as partial', () => {
+    assert.deepStrictEqual(
+      getSeasonDisplay(
+        seasons[3],
+        mediaSeason(3, MediaStatus.AVAILABLE, 2),
+        lastEpisodeToAir
+      ),
+      { status: MediaStatus.PARTIALLY_AVAILABLE, airing: false }
+    );
+  });
+
+  it('keeps the stored status without a count, and finished seasons are not airing', () => {
+    assert.deepStrictEqual(
+      getSeasonDisplay(
+        seasons[1],
+        mediaSeason(1, MediaStatus.AVAILABLE),
+        lastEpisodeToAir
+      ),
+      { status: MediaStatus.AVAILABLE, airing: false }
+    );
+    assert.deepStrictEqual(
+      getSeasonDisplay(
+        seasons[2],
+        mediaSeason(2, MediaStatus.PROCESSING),
+        lastEpisodeToAir
+      ),
+      { status: MediaStatus.PROCESSING, airing: false }
+    );
+  });
+});
+
+describe('getSeasonsSummary', () => {
   it('names the only available season when earlier ones were never requested', () => {
     assert.deepStrictEqual(
-      getAvailableSeasonNumbers({
+      getSeasonsSummary({
         seasons,
         mediaSeasons: [mediaSeason(3, MediaStatus.AVAILABLE, 4)],
         lastEpisodeToAir,
       }),
-      [3]
+      { state: 'some', available: [3], airing: true }
     );
   });
 
-  it('ignores specials and seasons that have not aired', () => {
+  it('reports every aired season in, ignoring specials and unaired seasons', () => {
     assert.deepStrictEqual(
-      getAvailableSeasonNumbers({
+      getSeasonsSummary({
         seasons,
         mediaSeasons: [
           mediaSeason(0, MediaStatus.PARTIALLY_AVAILABLE, 1),
           mediaSeason(1, MediaStatus.AVAILABLE, 10),
+          mediaSeason(2, MediaStatus.AVAILABLE, 10),
+          mediaSeason(3, MediaStatus.AVAILABLE, 4),
           mediaSeason(4, MediaStatus.PROCESSING),
         ],
         lastEpisodeToAir,
       }),
-      [1]
+      { state: 'all', available: [1, 2, 3], airing: true }
     );
   });
 
-  it('keeps the generic label when an aired season is missing episodes', () => {
+  it('is partial when an aired season is missing episodes', () => {
     assert.strictEqual(
-      getAvailableSeasonNumbers({
+      getSeasonsSummary({
         seasons,
         mediaSeasons: [
           mediaSeason(1, MediaStatus.AVAILABLE, 10),
           mediaSeason(2, MediaStatus.PARTIALLY_AVAILABLE, 7),
         ],
         lastEpisodeToAir,
-      }),
-      undefined
+      }).state,
+      'partial'
     );
   });
 
-  it('returns nothing when no season is available', () => {
+  it('is partial when an aired requested season is not in', () => {
     assert.strictEqual(
-      getAvailableSeasonNumbers({
+      getSeasonsSummary({
+        seasons,
+        mediaSeasons: [
+          mediaSeason(1, MediaStatus.AVAILABLE, 10),
+          mediaSeason(2, MediaStatus.PROCESSING),
+        ],
+        lastEpisodeToAir,
+        requestedSeasons: [2],
+      }).state,
+      'partial'
+    );
+  });
+
+  it('ignores requested seasons that have not aired', () => {
+    assert.deepStrictEqual(
+      getSeasonsSummary({
+        seasons,
+        mediaSeasons: [
+          mediaSeason(1, MediaStatus.AVAILABLE, 10),
+          mediaSeason(3, MediaStatus.AVAILABLE, 4),
+          mediaSeason(4, MediaStatus.PROCESSING),
+        ],
+        lastEpisodeToAir,
+        requestedSeasons: [3, 4],
+      }),
+      { state: 'some', available: [1, 3], airing: true }
+    );
+  });
+
+  it('reports none when nothing is in', () => {
+    assert.strictEqual(
+      getSeasonsSummary({
         seasons,
         mediaSeasons: [mediaSeason(2, MediaStatus.PROCESSING)],
         lastEpisodeToAir,
-      }),
-      undefined
+      }).state,
+      'none'
     );
   });
 
   it('reads the 4K statuses when asked', () => {
     assert.deepStrictEqual(
-      getAvailableSeasonNumbers({
+      getSeasonsSummary({
         seasons,
         mediaSeasons: [
-          {
-            ...mediaSeason(1, MediaStatus.AVAILABLE, 10),
-            status4k: MediaStatus.UNKNOWN,
-          },
+          mediaSeason(1, MediaStatus.AVAILABLE, 10),
           {
             ...mediaSeason(2, MediaStatus.UNKNOWN),
             status4k: MediaStatus.AVAILABLE,
@@ -108,39 +196,7 @@ describe('getAvailableSeasonNumbers', () => {
         lastEpisodeToAir,
         is4k: true,
       }),
-      [2]
-    );
-  });
-
-  it('keeps the generic label when an aired requested season is not in', () => {
-    assert.strictEqual(
-      getAvailableSeasonNumbers({
-        seasons,
-        mediaSeasons: [
-          mediaSeason(1, MediaStatus.AVAILABLE, 10),
-          mediaSeason(2, MediaStatus.PROCESSING),
-        ],
-        lastEpisodeToAir,
-        requestedSeasons: [2],
-      }),
-      undefined
-    );
-  });
-
-  it('names seasons when every aired requested season is in', () => {
-    assert.deepStrictEqual(
-      getAvailableSeasonNumbers({
-        seasons,
-        mediaSeasons: [
-          mediaSeason(1, MediaStatus.AVAILABLE, 10),
-          mediaSeason(3, MediaStatus.AVAILABLE, 4),
-          mediaSeason(4, MediaStatus.PROCESSING),
-        ],
-        lastEpisodeToAir,
-        // Season 4 hasn't aired, so it can't be missing yet
-        requestedSeasons: [3, 4],
-      }),
-      [1, 3]
+      { state: 'some', available: [2], airing: false }
     );
   });
 });

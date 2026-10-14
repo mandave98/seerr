@@ -1,4 +1,7 @@
-import { getAiredEpisodeCount } from '@server/utils/airedEpisodes';
+import {
+  getAiredEpisodeCount,
+  getTvdbAiringEpisodes,
+} from '@server/utils/airedEpisodes';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -102,5 +105,69 @@ describe('getAiredEpisodeCount', () => {
       }),
       6
     );
+  });
+});
+
+describe('getTvdbAiringEpisodes', () => {
+  // VisionQuest's real schedule: a two-episode premiere, then weekly pairs
+  const episode = (seasonNumber: number, number: number, aired: string) => ({
+    id: seasonNumber * 100 + number,
+    aired,
+    number,
+    seasonNumber,
+    name: `S${seasonNumber}E${number}`,
+    overview: '',
+  });
+  const episodes = [
+    episode(1, 3, '2026-10-20'),
+    episode(1, 1, '2026-10-13'),
+    episode(1, 2, '2026-10-13'),
+    episode(1, 4, '2026-10-20'),
+    episode(0, 1, '2026-10-30'),
+    episode(2, 1, ''),
+  ];
+
+  it('picks the latest aired and the next dated episode', () => {
+    const { last_episode_to_air, next_episode_to_air } = getTvdbAiringEpisodes(
+      episodes,
+      213375,
+      new Date('2026-10-14T01:45:00Z')
+    );
+
+    assert.deepStrictEqual(
+      [last_episode_to_air?.season_number, last_episode_to_air?.episode_number],
+      [1, 2]
+    );
+    assert.deepStrictEqual(
+      [
+        next_episode_to_air?.season_number,
+        next_episode_to_air?.episode_number,
+        next_episode_to_air?.air_date,
+      ],
+      [1, 3, '2026-10-20']
+    );
+    assert.strictEqual(last_episode_to_air?.show_id, 213375);
+  });
+
+  it('counts an episode as aired on its air date', () => {
+    const { last_episode_to_air } = getTvdbAiringEpisodes(
+      episodes,
+      1,
+      new Date('2026-10-20T00:00:00Z')
+    );
+
+    assert.strictEqual(last_episode_to_air?.episode_number, 4);
+  });
+
+  it('returns nothing before the premiere or without dates', () => {
+    assert.deepStrictEqual(
+      getTvdbAiringEpisodes(episodes, 1, new Date('2026-10-01T00:00:00Z'))
+        .last_episode_to_air,
+      undefined
+    );
+    assert.deepStrictEqual(getTvdbAiringEpisodes([episode(2, 1, '')], 1), {
+      last_episode_to_air: undefined,
+      next_episode_to_air: undefined,
+    });
   });
 });
